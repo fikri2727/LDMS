@@ -1,0 +1,698 @@
+// LDMS (Learning & Development Management System) — SQLite schema
+// Modeled after the legacy PHP/MySQL LDMS app's tables (user, training, ojt,
+// participation, participateojt, pme, divisions/departments/sections),
+// adapted to a normalized, typed Prisma schema.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------- Organization structure ----------
+
+model Division {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  shortName   String?
+  departments Department[]
+  users       User[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Department {
+  id         Int      @id @default(autoincrement())
+  divisionId Int
+  division   Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  name       String
+  shortName  String?
+
+  // Head of department (nullable — assigned separately from staff records)
+  hodUserId Int?  @unique
+  hod       User? @relation("DeptHod", fields: [hodUserId], references: [id], onDelete: SetNull)
+
+  sections  Section[]
+  users     User[]    @relation("DeptStaff")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([divisionId, name])
+}
+
+model Section {
+  id           Int        @id @default(autoincrement())
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  name         String
+  shortName    String?
+  users        User[]     @relation("SectionStaff")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([departmentId, name])
+}
+
+// ---------- Staff / auth ----------
+
+enum RoleType {
+  ADMIN
+  CLERK
+  STAFF
+  CREATOR
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum Designation {
+  EXECUTIVE
+  MANAGER
+  NON_EXECUTIVE
+  CONTRACT
+  TRAINEE
+}
+
+enum StaffStatus {
+  ACTIVE
+  RESIGN
+}
+
+model User {
+  id          Int         @id @default(autoincrement())
+  staffNo     String      @unique
+  password    String
+  passwordIsDefault Boolean @default(true)
+  staffName   String
+  email       String?
+  gender      Gender
+  designation Designation
+  nationality String?
+
+  divisionId Int?
+  division   Division? @relation(fields: [divisionId], references: [id])
+
+  departmentId Int?
+  department   Department? @relation("DeptStaff", fields: [departmentId], references: [id])
+
+  sectionId Int?
+  section   Section? @relation("SectionStaff", fields: [sectionId], references: [id])
+
+  status     StaffStatus @default(ACTIVE)
+  dateResign DateTime?
+
+  // Denormalized pointer to this staff's HOD (synced when department.hodUserId changes).
+  // Org-chart / department-head purposes only — NOT used for PME (see supervisorId).
+  hodId Int?
+  hod   User?  @relation("StaffHod", fields: [hodId], references: [id], onDelete: SetNull)
+  staff User[] @relation("StaffHod")
+
+  isHod    Boolean  @default(false)
+  roleType RoleType @default(STAFF)
+
+  // Individual reporting line, set per-staff on the Staff List — this is who
+  // performs this staff member's PME evaluation, independent of department/HOD.
+  supervisorId Int?
+  supervisor   User?  @relation("StaffSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+  supervisees  User[] @relation("StaffSupervisor")
+
+  departmentHeadOf Department? @relation("DeptHod")
+
+  trainingsCreated     Training[]       @relation("TrainingCreatedBy")
+  participations       Participation[]
+  ojtsCreated          Ojt[]            @relation("OjtCreatedBy")
+  ojtParticipations    ParticipateOjt[] @relation("OjtParticipant")
+  ojtKeyedIn           ParticipateOjt[] @relation("OjtClerk")
+  pmeParticipations    Pme[]            @relation("PmeParticipant")
+  pmeToEvaluate        Pme[]            @relation("PmeSupervisor")
+  certificatesUploaded Certificate[]
+
+  elearningModulesCreated       ElearningModule[]         @relation("ElearningModuleCreatedBy")
+  elearningAssignmentsReceived  ElearningAssignment[]      @relation("ElearningAssignee")
+  elearningAssignmentsGiven     ElearningAssignment[]      @relation("ElearningAssignedBy")
+  elearningLessonProgress       ElearningLessonProgress[]
+  elearningQuizAttempts         ElearningQuizAttempt[]
+  elearningCompletions          ElearningCompletion[]
+  elearningCertificates         ElearningCertificate[]
+
+  tnaRecords  Tna[] @relation("TnaOwner")
+  tnaApproved Tna[] @relation("TnaApprovedBy")
+
+  requisitionsCreated     TrainingRequisition[]     @relation("RequisitionApplicant")
+  requisitionsReviewed    TrainingRequisition[]     @relation("RequisitionReviewedBy")
+  requisitionParticipations RequisitionParticipant[] @relation("RequisitionParticipant")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- Public / Inhouse training ----------
+
+enum TrainingProgram {
+  EXT // External public program
+  INTX // Internal training, external trainer
+  INTI // Internal training, internal trainer
+}
+
+enum Platform {
+  PHYSICAL
+  ONLINE
+}
+
+enum TrainingFunction {
+  BUSINESS
+  DIGITAL
+  LEADERSHIP
+  PERSONAL_EFFECTIVENESS
+}
+
+model Training {
+  id            Int              @id @default(autoincrement())
+  trainingCode  String           @unique
+  title         String
+  program       TrainingProgram
+  cost          Float            @default(0)
+  platform      Platform
+  function      TrainingFunction
+  venue         String
+  hrdcClaimable Boolean          @default(false)
+  startDate     DateTime
+  endDate       DateTime
+  startTime     String
+  endTime       String
+  trainer       String
+
+  createdByUserId Int?
+  createdBy       User? @relation("TrainingCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  participations Participation[]
+  certificates   Certificate[]
+  pmes           Pme[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum AttendanceStatus {
+  PENDING
+  COMPLETED
+  ABSENT
+}
+
+model Participation {
+  id         Int              @id @default(autoincrement())
+  trainingId Int
+  training   Training         @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       User             @relation(fields: [userId], references: [id])
+  attendance AttendanceStatus @default(PENDING)
+
+  // Post-training survey (1-5: Poor/Fair/Good/Very Good/Excellent)
+  courseRelevance       Int? // Course Relevance and Usefulness
+  practicalExercises    Int? // Practical, Discussion & Exercises
+  sufficientTime        Int? // Sufficient Time Spent on Course Topic
+  trainerEffectiveness  Int? // Overall Effectiveness of Course Trainer
+  courseEffectiveness   Int? // Overall Effectiveness of Course
+  whatLearnt            String? // Identify What You Have Learnt From The Course
+  actionPlan            String? // Explain Your Personal Action Plans On How To Apply What You Have Learnt On The Job
+  commentSuggestions    String? // Comment & Suggestions (if any)
+
+  pme Pme?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([trainingId, userId])
+}
+
+model Certificate {
+  id     Int      @id @default(autoincrement())
+  trainingId Int
+  training   Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  fileName   String
+  filePath   String
+
+  uploadedByUserId Int?
+  uploadedBy       User? @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  uploadedAt DateTime @default(now())
+}
+
+// ---------- OJT (on-the-job training) ----------
+
+enum TrainerType {
+  INTERNAL
+  EXTERNAL
+}
+
+model Ojt {
+  id           Int         @id @default(autoincrement())
+  trainingCode String      @unique
+  title        String
+  startDate    DateTime
+  endDate      DateTime
+  startTime    String
+  endTime      String
+  venue        String
+  trainerType  TrainerType
+  trainerName  String
+  totalDay     Int
+  totalHour    Float
+  totalMan     Int         @default(1)
+
+  createdByUserId Int?
+  createdBy       User? @relation("OjtCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  participants ParticipateOjt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ParticipateOjt {
+  id         Int              @id @default(autoincrement())
+  ojtId      Int
+  ojt        Ojt              @relation(fields: [ojtId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       User             @relation("OjtParticipant", fields: [userId], references: [id])
+  attendance AttendanceStatus @default(PENDING)
+
+  q1 String? // what was learned
+  q2 Int? // self-rated skill before (1-5)
+  q3 Int? // self-rated skill after (1-5)
+
+  totalMan   Int     @default(1)
+  department String? // denormalized snapshot at time of entry
+
+  clerkId Int?
+  clerk   User? @relation("OjtClerk", fields: [clerkId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ojtId, userId])
+}
+
+// ---------- PME (Performance Monitoring Evaluation) ----------
+
+enum PmeStatus {
+  PENDING
+  VERIFIED
+}
+
+enum RatingBand {
+  EXCELLENT
+  VERY_GOOD
+  GOOD
+  SATISFACTORY
+  FAIR
+  POOR
+}
+
+model Pme {
+  id Int @id @default(autoincrement())
+
+  trainingId      Int
+  training        Training      @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  participationId Int           @unique
+  participation   Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  userId          Int
+  user            User          @relation("PmeParticipant", fields: [userId], references: [id])
+
+  // Snapshot of the participant's supervisor (User.supervisorId) at the time
+  // this PME was created — who is responsible for evaluating it.
+  supervisorId Int?
+  supervisor   User? @relation("PmeSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+
+  designation   Designation
+  staffName     String
+  staffNo       String
+  department    String
+  trainingTitle String
+  fromDate      DateTime?
+  toDate        DateTime?
+  ojtConducted  Boolean?
+  // Free-text date/time/location (if OJT conducted) or reason (if not).
+  ojtDetails    String?
+
+  levelRating  RatingBand?
+  levelPercent String? // free-text rating criteria, e.g. "85% = Very Good"
+  levelRemark  String?
+
+  levelRating2  RatingBand?
+  levelPercent2 String?
+  levelRemark2  String?
+
+  behavioralRating  RatingBand?
+  behavioralPercent String?
+  behavioralRemark  String?
+
+  resultRating  RatingBand?
+  resultPercent String?
+  resultRemark  String?
+
+  totalMark   Int?
+  averageMark Float?
+
+  status PmeStatus @default(PENDING)
+
+  // When the supervisor submitted the evaluation (status became VERIFIED).
+  evaluatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- E-Learning ----------
+
+enum ModuleStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum LessonType {
+  SLIDE
+  VIDEO
+  QUIZ
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  TRUE_FALSE
+  MULTIPLE_ANSWER
+}
+
+model ElearningCategory {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  modules ElearningModule[]
+
+  createdAt DateTime @default(now())
+}
+
+model ElearningModule {
+  id            Int          @id @default(autoincrement())
+  title         String
+  description   String?
+  objectives    String? // newline-separated list
+  passThreshold Int          @default(80)
+  status        ModuleStatus @default(DRAFT)
+
+  categoryId Int?
+  category   ElearningCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  createdByUserId Int?
+  createdBy       User? @relation("ElearningModuleCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  publishedAt DateTime?
+
+  certificateBackgroundName String?
+  certificateBackgroundPath String?
+
+  lessons      ElearningLesson[]
+  assignments  ElearningAssignment[]
+  completions  ElearningCompletion[]
+  certificates ElearningCertificate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ElearningLesson {
+  id       Int             @id @default(autoincrement())
+  moduleId Int
+  module   ElearningModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  type     LessonType
+  title    String
+  order    Int             @default(0)
+
+  // SLIDE
+  slideContent  String?
+  slideFileName String?
+  slideFilePath String?
+  slideFileType String?
+
+  // VIDEO
+  videoUrl         String?
+  videoDescription String?
+  videoFileName    String?
+  videoFilePath    String?
+
+  // QUIZ settings
+  passPercent        Int?     @default(80)
+  maxAttempts        Int?     @default(3)
+  randomizeQuestions Boolean  @default(false)
+  randomizeOptions   Boolean  @default(false)
+  showCorrectAnswers Boolean  @default(true)
+  showExplanation    Boolean  @default(true)
+  timeLimitMinutes   Int?
+
+  questions ElearningQuestion[]
+  progress  ElearningLessonProgress[]
+  attempts  ElearningQuizAttempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ElearningQuestion {
+  id          Int             @id @default(autoincrement())
+  lessonId    Int
+  lesson      ElearningLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  type        QuestionType
+  question    String
+  explanation String?
+  marks       Int             @default(1)
+  order       Int             @default(0)
+
+  options ElearningOption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ElearningOption {
+  id         Int               @id @default(autoincrement())
+  questionId Int
+  question   ElearningQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  isCorrect  Boolean           @default(false)
+  order      Int               @default(0)
+}
+
+model ElearningAssignment {
+  id       Int             @id @default(autoincrement())
+  moduleId Int
+  module   ElearningModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  userId   Int
+  user     User            @relation("ElearningAssignee", fields: [userId], references: [id])
+
+  assignedByUserId Int?
+  assignedBy       User? @relation("ElearningAssignedBy", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  startDate DateTime?
+  dueDate   DateTime?
+  mandatory Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@unique([moduleId, userId])
+}
+
+model ElearningLessonProgress {
+  id       Int             @id @default(autoincrement())
+  lessonId Int
+  lesson   ElearningLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  userId   Int
+  user     User            @relation(fields: [userId], references: [id])
+
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lessonId, userId])
+}
+
+model ElearningQuizAttempt {
+  id       Int             @id @default(autoincrement())
+  lessonId Int
+  lesson   ElearningLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  userId   Int
+  user     User            @relation(fields: [userId], references: [id])
+
+  attemptNo Int
+  score     Float // percent, 0-100
+  passed    Boolean
+  answers   String // JSON: { [questionId]: number[] } selected option ids
+
+  submittedAt DateTime @default(now())
+}
+
+model ElearningCompletion {
+  id       Int             @id @default(autoincrement())
+  moduleId Int
+  module   ElearningModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  userId   Int
+  user     User            @relation(fields: [userId], references: [id])
+
+  finalScore  Float?
+  completedAt DateTime @default(now())
+
+  certificate ElearningCertificate?
+
+  @@unique([moduleId, userId])
+}
+
+model ElearningCertificate {
+  id            Int    @id @default(autoincrement())
+  certificateNo String @unique
+
+  completionId Int                 @unique
+  completion   ElearningCompletion @relation(fields: [completionId], references: [id], onDelete: Cascade)
+
+  moduleId Int
+  module   ElearningModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  userId   Int
+  user     User            @relation(fields: [userId], references: [id])
+
+  score    Float
+  issuedAt DateTime @default(now())
+}
+
+// ---------- TNA (Training Need Analysis) ----------
+
+enum TnaSection {
+  ESG
+  SELF
+  LEAD
+  DATA
+  FUNCTIONAL
+  BUSINESS
+  SPECIAL
+}
+
+enum TnaTrainingType {
+  OJT
+  COACHING
+  EXTERNAL
+}
+
+enum TnaStatus {
+  PENDING
+  APPROVED
+}
+
+model Tna {
+  id     Int @id @default(autoincrement())
+  userId Int
+  user   User @relation("TnaOwner", fields: [userId], references: [id])
+  year   Int
+
+  status     TnaStatus @default(PENDING)
+  approvedAt DateTime?
+
+  approvedByUserId Int?
+  approvedBy       User? @relation("TnaApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  items TnaItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, year])
+}
+
+model TnaItem {
+  id      Int        @id @default(autoincrement())
+  tnaId   Int
+  tna     Tna        @relation(fields: [tnaId], references: [id], onDelete: Cascade)
+  section TnaSection
+  order   Int        @default(0)
+
+  problemStatement String
+  training         String
+  targetSkill      Int
+  currentSkill     Int
+  trainingType     TnaTrainingType
+  monthApply       String
+
+  createdAt DateTime @default(now())
+}
+
+// Admin-managed catalogue of selectable trainings per TNA section (a–g),
+// shown in the TnaForm training dropdown alongside the fixed "OTHERS" free-text escape.
+model TnaTrainingOption {
+  id        Int        @id @default(autoincrement())
+  section   TnaSection
+  groupName String?
+  label     String
+  order     Int        @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([section, order])
+}
+
+// ---------- Staff Training Requisition ----------
+
+enum RequisitionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model TrainingRequisition {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  user   User @relation("RequisitionApplicant", fields: [userId], references: [id])
+
+  participants RequisitionParticipant[]
+
+  title            String
+  trainingDate     DateTime
+  trainingEndDate  DateTime?
+  startTime        String
+  endTime          String
+  venue            String
+  objective        String
+  fees             Float
+  hrdcClaimable    Boolean @default(false)
+  remarks          String?
+  trainingProvider String
+
+  brochureFileName String?
+  brochureFilePath String?
+
+  status  RequisitionStatus @default(PENDING)
+  grantId String?
+
+  reviewedByUserId Int?
+  reviewedBy       User?     @relation("RequisitionReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?
+  reviewRemarks    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model RequisitionParticipant {
+  id            Int                 @id @default(autoincrement())
+  requisitionId Int
+  requisition   TrainingRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  userId        Int
+  user          User                @relation("RequisitionParticipant", fields: [userId], references: [id])
+
+  @@unique([requisitionId, userId])
+}
