@@ -47,6 +47,11 @@ export function canManageTna(session: SessionData) {
   return session.roleType === "ADMIN";
 }
 
+/** TNA: only HODs key in their own Training Need Analysis — regular staff no longer submit one. */
+export function canSubmitTna(session: SessionData) {
+  return session.isHod;
+}
+
 /** Staff Training Requisition: HODs approve/reject applications from their own department's staff. */
 export function canReviewRequisitions(session: SessionData) {
   return session.isHod;

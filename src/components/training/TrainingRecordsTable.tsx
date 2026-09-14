@@ -8,6 +8,7 @@ import { PROGRAM_LABELS, PLATFORM_LABELS, FUNCTION_LABELS } from "@/lib/labels";
 import { deleteTraining } from "@/app/(app)/training/public/actions";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { SortableTh, type SortDir } from "@/components/ui/SortableTh";
+import { ParticipantsModal, type ParticipantSummary } from "@/components/training/ParticipantsModal";
 
 type SortKey =
   | "code"
@@ -66,6 +67,7 @@ export interface TrainingRow {
   abs: number;
   pmeComp: number;
   pmePend: number;
+  participants: ParticipantSummary[];
 }
 
 export function TrainingRecordsTable({ rows }: { rows: TrainingRow[] }) {
@@ -78,6 +80,7 @@ export function TrainingRecordsTable({ rows }: { rows: TrainingRow[] }) {
   const [pending, startTransition] = useTransition();
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [activeRowId, setActiveRowId] = useState<number | null>(null);
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -113,6 +116,7 @@ export function TrainingRecordsTable({ rows }: { rows: TrainingRow[] }) {
   }
 
   const totalManHours = useMemo(() => filtered.reduce((sum, r) => sum + r.totalManHours, 0), [filtered]);
+  const activeRow = rows.find((r) => r.id === activeRowId) ?? null;
   const confirm = useConfirm();
 
   async function handleDelete(id: number, title: string) {
@@ -194,7 +198,7 @@ export function TrainingRecordsTable({ rows }: { rows: TrainingRow[] }) {
           <thead className="bg-gray-50 text-left text-text-muted text-[11px] uppercase tracking-wide">
             <tr>
               <th className="px-3 py-2.5 font-medium w-6">No</th>
-              <SortableTh label="Code" active={sortKey === "code"} dir={sortDir} onClick={() => toggleSort("code")} className="px-3 py-2.5 w-16" />
+              <SortableTh label="Code" active={sortKey === "code"} dir={sortDir} onClick={() => toggleSort("code")} className="px-3 py-2.5 w-28" />
               <SortableTh label="Title" active={sortKey === "title"} dir={sortDir} onClick={() => toggleSort("title")} className="px-3 py-2.5 w-36 break-words" />
               <SortableTh label="Program" active={sortKey === "program"} dir={sortDir} onClick={() => toggleSort("program")} className="px-3 py-2.5 w-16 break-words" />
               <SortableTh label="Start Date" active={sortKey === "startDate"} dir={sortDir} onClick={() => toggleSort("startDate")} className="px-3 py-2.5 w-20" />
@@ -220,7 +224,16 @@ export function TrainingRecordsTable({ rows }: { rows: TrainingRow[] }) {
               return (
                 <tr key={r.id} className="hover:bg-gray-50 align-top">
                   <td className="px-3 py-2.5 text-text-muted">{i + 1}</td>
-                  <td className="px-3 py-2.5 text-text-muted font-mono break-all">{r.trainingCode}</td>
+                  <td className="px-3 py-2.5 font-mono whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => setActiveRowId(r.id)}
+                      title="View participants & evaluation status"
+                      className="text-primary-dark hover:underline"
+                    >
+                      {r.trainingCode}
+                    </button>
+                  </td>
                   <td className="px-3 py-2.5 break-words">
                     <Link href={`/training/public/${r.id}`} className="text-primary-dark font-medium hover:underline">
                       {r.title}
@@ -301,6 +314,16 @@ export function TrainingRecordsTable({ rows }: { rows: TrainingRow[] }) {
           )}
         </table>
       </div>
+
+      {activeRow && (
+        <ParticipantsModal
+          title={activeRow.title}
+          code={activeRow.trainingCode}
+          participants={activeRow.participants}
+          showPme
+          onClose={() => setActiveRowId(null)}
+        />
+      )}
     </div>
   );
 }

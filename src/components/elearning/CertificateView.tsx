@@ -89,7 +89,7 @@ export function CertificateView({
         <p className="text-sm text-text-secondary mb-2">This certificate is proudly presented to</p>
         <p className="text-2xl font-semibold text-text-primary mb-6">{staffName}</p>
         <p className="text-sm text-text-secondary mb-2">for successfully completing</p>
-        <p className="text-xl font-medium text-primary-dark mb-8">{moduleTitle}</p>
+        <p className="text-xl font-medium text-tamco-navy mb-8">{moduleTitle}</p>
 
         <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto text-sm mb-10">
           <div>

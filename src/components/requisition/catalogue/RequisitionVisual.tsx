@@ -18,6 +18,14 @@ function Glyph({ status }: { status: RequisitionStatusKey }) {
       </svg>
     );
   }
+  if (status === "COMPLETED") {
+    return (
+      <svg {...common}>
+        <path d="M14 5v38" />
+        <path d="M14 8h22l-6 8 6 8H14" />
+      </svg>
+    );
+  }
   if (status === "REJECTED") {
     return (
       <svg {...common}>

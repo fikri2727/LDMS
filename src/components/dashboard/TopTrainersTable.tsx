@@ -8,14 +8,14 @@ export function TopTrainersTable({ data }: { data: { trainer: string; totalHour:
     <table className="w-full text-sm">
       <thead className="text-left text-text-muted text-xs uppercase tracking-wide">
         <tr>
-          <th className="pb-2.5 font-medium">Trainer</th>
-          <th className="pb-2.5 font-medium text-right">Total Hours</th>
+          <th className="pb-1.5 font-medium">Trainer</th>
+          <th className="pb-1.5 font-medium text-right">Total Hours</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-border">
         {data.map((d, i) => (
           <tr key={d.trainer}>
-            <td className="py-2.5">
+            <td className="py-1">
               <div className="flex items-center gap-2.5">
                 <span
                   className={`flex items-center justify-center h-7 w-7 rounded-full text-white text-[10px] font-semibold shrink-0 ${
@@ -27,7 +27,7 @@ export function TopTrainersTable({ data }: { data: { trainer: string; totalHour:
                 <span className="text-text-primary font-medium">{d.trainer}</span>
               </div>
             </td>
-            <td className="py-2.5 text-right text-text-secondary tabular-nums">{d.totalHour}</td>
+            <td className="py-1 text-right text-text-secondary tabular-nums">{d.totalHour}</td>
           </tr>
         ))}
         {data.length === 0 && (

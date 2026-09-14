@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { RATING_BAND_LABELS, RATING_BAND_RANGES, RATING_BAND_SHORT_LABELS } from "@/lib/labels";
+import { PME_QUESTIONS, PME_OJT_QUESTION } from "@/lib/pme-questions";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 function extractPercent(text: string): number | null {
@@ -187,17 +188,13 @@ export function PmeEvaluationForm({
         </div>
       </div>
 
-      <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Learning Level</h3>
-      <RatingQuestion
-        prefix="level"
-        number={1}
-        question="Evaluate employees Knowledge Sharing Sessions (KSS) and On-the-Job Training (OJT) conducted for their teams after attending training"
-      />
+      <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">
+        {PME_QUESTIONS.level.section}
+      </h3>
+      <RatingQuestion prefix="level" number={PME_QUESTIONS.level.number} question={PME_QUESTIONS.level.question} />
 
       <div className="rounded-2xl border border-border bg-surface p-4 mb-4">
-        <p className="text-xs font-medium text-text-secondary mb-2">
-          Please confirm whether the On-the-Job Training (OJT) has been conducted.
-        </p>
+        <p className="text-xs font-medium text-text-secondary mb-2">{PME_OJT_QUESTION}</p>
         <div className="flex gap-4 mb-3">
           <label className="flex items-center gap-1.5 text-xs text-text-secondary">
             <input type="radio" name="ojtConducted" value="yes" className="text-primary focus:ring-primary" />
@@ -218,26 +215,24 @@ export function PmeEvaluationForm({
         />
       </div>
 
-      <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Learning Level</h3>
-      <RatingQuestion
-        prefix="level2"
-        number={2}
-        question="Did the employee learn what he / she is are supposed to learn from the training attended ?"
-      />
+      <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">
+        {PME_QUESTIONS.level2.section}
+      </h3>
+      <RatingQuestion prefix="level2" number={PME_QUESTIONS.level2.number} question={PME_QUESTIONS.level2.question} />
 
-      <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Behavioral Change</h3>
+      <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">
+        {PME_QUESTIONS.behavioral.section}
+      </h3>
       <RatingQuestion
         prefix="behavioral"
-        number={3}
-        question="Did the employee apply his / her newly acquired skills and knowledge to his / her jobs ?"
+        number={PME_QUESTIONS.behavioral.number}
+        question={PME_QUESTIONS.behavioral.question}
       />
 
-      <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Result Training Attended</h3>
-      <RatingQuestion
-        prefix="result"
-        number={4}
-        question="Did the training has any measurable business impact ?"
-      />
+      <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">
+        {PME_QUESTIONS.result.section}
+      </h3>
+      <RatingQuestion prefix="result" number={PME_QUESTIONS.result.number} question={PME_QUESTIONS.result.question} />
 
       <div className="pt-2">
         <SubmitButton />

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/guard";
 import { canManageTraining } from "@/lib/rbac";
 import { generateTrainingCode } from "@/lib/training-code";
-import { maybeCreatePme } from "@/lib/pme";
+import { applySurveyAnswers } from "@/lib/survey";
 import { saveUpload, deleteUpload } from "@/lib/uploads";
 import type { Platform, TrainingFunction, TrainingProgram } from "@/generated/prisma/client";
 
@@ -100,29 +100,7 @@ export async function markAbsent(trainingId: number, participationId: number) {
 
 export async function submitSurvey(trainingId: number, participationId: number, formData: FormData) {
   await requireSession();
-
-  function rating(key: string) {
-    const v = formData.get(key);
-    return v ? Number(v) : null;
-  }
-
-  await prisma.participation.update({
-    where: { id: participationId },
-    data: {
-      courseRelevance: rating("courseRelevance"),
-      practicalExercises: rating("practicalExercises"),
-      sufficientTime: rating("sufficientTime"),
-      trainerEffectiveness: rating("trainerEffectiveness"),
-      courseEffectiveness: rating("courseEffectiveness"),
-      whatLearnt: String(formData.get("whatLearnt") ?? "").trim(),
-      actionPlan: String(formData.get("actionPlan") ?? "").trim(),
-      commentSuggestions: String(formData.get("commentSuggestions") ?? "").trim(),
-      attendance: "COMPLETED",
-    },
-  });
-
-  await maybeCreatePme(participationId);
-
+  await applySurveyAnswers(participationId, formData);
   revalidatePath(`/training/public/${trainingId}`);
   revalidatePath("/training");
   redirect("/training");

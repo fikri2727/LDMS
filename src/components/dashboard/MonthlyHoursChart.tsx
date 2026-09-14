@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 
 export function MonthlyHoursChart({ data }: { data: { month: string; hours: number }[] }) {
   return (
-    <div className="h-64">
+    <div className="h-full min-h-[144px]">
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5EAEC" vertical={false} />

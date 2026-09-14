@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type MouseEvent } from "react";
-import { ArrowRight, CalendarDays, MapPin, Users, BadgeCheck } from "lucide-react";
+import { ArrowRight, CalendarDays, MapPin, Users, BadgeCheck, CalendarCheck2 } from "lucide-react";
 import { formatDateRange } from "@/lib/date-range";
 import { resolveRequisitionTheme } from "@/lib/requisition-theme";
 import { RequisitionVisual } from "@/components/requisition/catalogue/RequisitionVisual";
@@ -114,10 +114,15 @@ export function RequisitionCard({
             <BadgeCheck size={11} /> HRDC Claimable
           </p>
         )}
+        {r.underAtp && (
+          <p className="flex items-center gap-1 text-purple">
+            <CalendarCheck2 size={11} /> Under ATP
+          </p>
+        )}
       </div>
 
       <div
-        className="relative flex items-center justify-end gap-1 text-xs font-medium text-primary-dark transition-all duration-300 group-hover:gap-2"
+        className="relative flex items-center justify-start gap-1 text-xs font-medium text-primary-dark transition-all duration-300 group-hover:gap-2"
         style={{ color: hovering ? theme.accentHex : undefined }}
       >
         View Details <ArrowRight size={13} />

@@ -6,9 +6,12 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 export function RequisitionReviewButtons({
   onApprove,
   onReject,
+  onComplete,
 }: {
   onApprove: () => Promise<void>;
   onReject: () => Promise<void>;
+  /** Admin-only — omit to hide the "Mark Completed" button entirely (e.g. for an HOD). */
+  onComplete?: () => Promise<void>;
 }) {
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
@@ -33,6 +36,17 @@ export function RequisitionReviewButtons({
       >
         {pending ? "Please wait..." : "Reject"}
       </button>
+      {onComplete && (
+        <button
+          disabled={pending}
+          onClick={async () => {
+            if (await confirm("Mark this training requisition as Completed?")) startTransition(onComplete);
+          }}
+          className="rounded-xl bg-blue-50 hover:bg-blue-100 disabled:opacity-60 text-blue-600 text-sm font-medium px-4 py-2 transition-colors"
+        >
+          {pending ? "Please wait..." : "Mark Completed"}
+        </button>
+      )}
     </div>
   );
 }

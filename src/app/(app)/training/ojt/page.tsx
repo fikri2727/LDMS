@@ -14,7 +14,9 @@ export default async function OjtListPage() {
     where: manage ? undefined : { participants: { some: { userId: session.userId } } },
     orderBy: { startDate: "desc" },
     include: {
-      participants: true,
+      participants: {
+        include: { user: { select: { staffNo: true, staffName: true, department: { select: { name: true } } } } },
+      },
       createdBy: { select: { staffName: true } },
       _count: { select: { participants: true } },
     },
@@ -37,9 +39,17 @@ export default async function OjtListPage() {
         endTime: o.endTime,
         totalDay: o.totalDay,
         totalHour: o.totalHour,
-        totalManHour: Math.round(o.totalDay * o.totalHour * par * 100) / 100,
+        // Man-hours delivered so far — only participants who actually completed
+        // the OJT count, not ones still pending check-in/evaluation.
+        totalManHour: Math.round(o.totalDay * o.totalHour * comp * 100) / 100,
         par,
         comp,
+        participants: o.participants.map((p) => ({
+          staffNo: p.user.staffNo,
+          staffName: p.user.staffName,
+          department: p.user.department?.name ?? "—",
+          attendance: p.attendance,
+        })),
       };
     });
 

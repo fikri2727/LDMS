@@ -1,17 +1,24 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/guard";
-import { canManageTna } from "@/lib/rbac";
+import { canManageTna, canSubmitTna } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { TNA_STATUS_LABELS } from "@/lib/labels";
 import { TnaForm } from "@/components/training/TnaForm";
 import { TnaFilters } from "@/components/training/TnaFilters";
 import { emptyTnaFormState, defaultTnaFormState, buildTrainingOptionsMap, type TnaFormState } from "@/lib/tna-options";
+import { DownloadTnaReportButton, type TnaDeptSummaryRow, type TnaDetailRow } from "@/components/training/DownloadTnaReportButton";
 import { saveTna } from "./actions";
 
 function statusBadgeClass(status: string) {
   if (status === "APPROVED") return "inline-flex rounded-full bg-primary/10 text-primary-dark text-xs font-medium px-2.5 py-1";
   if (status === "PENDING") return "inline-flex rounded-full bg-purple/10 text-purple text-xs font-medium px-2.5 py-1";
+  if (status === "NO_HOD") return "inline-flex rounded-full bg-amber-100 text-amber-700 text-xs font-medium px-2.5 py-1";
   return "inline-flex rounded-full bg-gray-100 text-text-secondary text-xs font-medium px-2.5 py-1";
+}
+
+function statusLabel(status: string) {
+  if (status === "NO_HOD") return "No HOD Assigned";
+  return TNA_STATUS_LABELS[status] ?? status;
 }
 
 function ringColor(percent: number) {
@@ -92,14 +99,52 @@ export default async function TnaIndexPage({
     const { q, departmentId, status } = await searchParams;
     const year = new Date().getFullYear();
 
-    const [allStaff, departments, yearTnas] = await Promise.all([
+    const [allStaff, departments, yearTnas, reportItems] = await Promise.all([
       prisma.user.findMany({
         where: { status: "ACTIVE" },
         include: { department: true },
         orderBy: { staffName: "asc" },
       }),
-      prisma.department.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-      prisma.tna.findMany({ where: { year }, select: { id: true, userId: true, status: true } }),
+      prisma.department.findMany({
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          hodUserId: true,
+          hod: { select: { id: true, staffNo: true, staffName: true } },
+        },
+      }),
+      prisma.tna.findMany({
+        where: { year },
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          createdAt: true,
+          approvedAt: true,
+          approvedBy: { select: { staffName: true } },
+          _count: { select: { items: true } },
+        },
+      }),
+      // Full item-level detail for the Excel report — includes any TNA submitted
+      // this year even if its owner is no longer the current HOD of their
+      // department, so a past submission is never silently dropped from the export.
+      prisma.tnaItem.findMany({
+        where: { tna: { year } },
+        orderBy: [{ tnaId: "asc" }, { order: "asc" }],
+        include: {
+          tna: {
+            select: {
+              year: true,
+              status: true,
+              createdAt: true,
+              approvedAt: true,
+              approvedBy: { select: { staffName: true } },
+              user: { select: { staffNo: true, staffName: true, department: { select: { name: true } } } },
+            },
+          },
+        },
+      }),
     ]);
 
     const tnaByUserId = new Map(yearTnas.map((t) => [t.userId, t]));
@@ -137,29 +182,68 @@ export default async function TnaIndexPage({
       percent: allStaff.length ? Math.round((yearTnas.length / allStaff.length) * 100) : 0,
     };
 
-    // Individual list, with filters applied.
-    let rows = allStaff.map((s) => {
-      const tna = tnaByUserId.get(s.id);
+    // TNA is submitted by the assigned HOD on behalf of their whole department —
+    // staff never key in their own TNA — so this list is one row per department
+    // (its HOD and their submission status), not one row per staff member.
+    let rows = departments.map((d) => {
+      const hod = d.hod;
+      const tna = hod ? tnaByUserId.get(hod.id) : undefined;
       return {
-        userId: s.id,
-        staffNo: s.staffNo,
-        staffName: s.staffName,
-        department: s.department?.name ?? "—",
-        departmentId: s.departmentId,
+        departmentId: d.id,
+        department: d.name,
+        userId: hod?.id ?? null,
+        staffNo: hod?.staffNo ?? null,
+        staffName: hod?.staffName ?? null,
         tnaId: tna?.id ?? null,
-        status: tna?.status ?? "NOT_SUBMITTED",
+        status: hod ? (tna?.status ?? "NOT_SUBMITTED") : "NO_HOD",
       };
     });
     if (departmentId) rows = rows.filter((r) => r.departmentId === Number(departmentId));
     if (status) rows = rows.filter((r) => r.status === status);
     if (q) {
       const needle = q.toUpperCase();
-      rows = rows.filter((r) => r.staffName.includes(needle) || r.staffNo.toUpperCase().includes(needle));
+      rows = rows.filter(
+        (r) => (r.staffName?.includes(needle) ?? false) || (r.staffNo?.toUpperCase().includes(needle) ?? false),
+      );
     }
 
     const filteredDeptName = departmentId
       ? (deptStats.find((d) => d.id === Number(departmentId))?.name ?? null)
       : null;
+
+    // Excel report — the full HOD list (unaffected by the on-page filters) plus
+    // every training-need item submitted this year.
+    const reportSummaryRows: TnaDeptSummaryRow[] = departments.map((d) => {
+      const hod = d.hod;
+      const tna = hod ? tnaByUserId.get(hod.id) : undefined;
+      return {
+        department: d.name,
+        hodStaffNo: hod?.staffNo ?? null,
+        hodName: hod?.staffName ?? null,
+        status: hod ? (tna?.status ?? "NOT_SUBMITTED") : "NO_HOD",
+        itemsCount: tna?._count.items ?? 0,
+        submittedAt: tna?.createdAt.toISOString() ?? null,
+        approvedAt: tna?.approvedAt?.toISOString() ?? null,
+        approvedByName: tna?.approvedBy?.staffName ?? null,
+      };
+    });
+    const reportDetailRows: TnaDetailRow[] = reportItems.map((item) => ({
+      year: item.tna.year,
+      department: item.tna.user.department?.name ?? "—",
+      hodStaffNo: item.tna.user.staffNo,
+      hodName: item.tna.user.staffName,
+      status: item.tna.status,
+      submittedAt: item.tna.createdAt.toISOString(),
+      approvedAt: item.tna.approvedAt?.toISOString() ?? null,
+      approvedByName: item.tna.approvedBy?.staffName ?? null,
+      section: item.section,
+      problemStatement: item.problemStatement,
+      training: item.training,
+      currentSkill: item.currentSkill,
+      targetSkill: item.targetSkill,
+      trainingType: item.trainingType,
+      monthApply: item.monthApply,
+    }));
 
     return (
       <div>
@@ -170,12 +254,15 @@ export default async function TnaIndexPage({
               {year} — {overall.submitted} of {overall.total} staff submitted ({overall.percent}%)
             </p>
           </div>
-          <Link
-            href="/tna/summary"
-            className="rounded-xl bg-primary-dark hover:bg-primary text-white text-sm font-medium px-4 py-2 transition-colors"
-          >
-            TNA Summary
-          </Link>
+          <div className="flex items-center gap-3">
+            <DownloadTnaReportButton year={year} summaryRows={reportSummaryRows} detailRows={reportDetailRows} />
+            <Link
+              href="/tna/summary"
+              className="rounded-xl bg-primary-dark hover:bg-primary text-white text-sm font-medium px-4 py-2 transition-colors"
+            >
+              TNA Summary
+            </Link>
+          </div>
         </div>
 
         <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
@@ -189,31 +276,34 @@ export default async function TnaIndexPage({
         </div>
 
         <h3 id="staff-list" className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3 scroll-mt-4">
-          TNA List (by Individual){filteredDeptName ? ` — ${filteredDeptName}` : ""}
+          TNA List (by HOD){filteredDeptName ? ` — ${filteredDeptName}` : ""}
         </h3>
+        <p className="text-xs text-text-muted mb-3">
+          Only the assigned Head of Department keys in a TNA, on behalf of their whole department.
+        </p>
         <div className="mb-4">
           <TnaFilters departments={departments} />
         </div>
-        <p className="text-text-secondary text-sm mb-3">{rows.length} staff</p>
+        <p className="text-text-secondary text-sm mb-3">{rows.length} department(s)</p>
         <div className="bg-surface rounded-2xl border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
               <tr>
-                <th className="px-4 py-3 font-medium">Staff No.</th>
-                <th className="px-4 py-3 font-medium">Staff Name</th>
                 <th className="px-4 py-3 font-medium">Department</th>
+                <th className="px-4 py-3 font-medium">HOD Staff No.</th>
+                <th className="px-4 py-3 font-medium">HOD Name</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {rows.map((r) => (
-                <tr key={r.userId} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-text-secondary">{r.staffNo}</td>
-                  <td className="px-4 py-3 text-text-primary">{r.staffName}</td>
-                  <td className="px-4 py-3 text-text-secondary">{r.department}</td>
+                <tr key={r.departmentId} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-text-primary">{r.department}</td>
+                  <td className="px-4 py-3 text-text-secondary">{r.staffNo ?? "—"}</td>
+                  <td className="px-4 py-3 text-text-secondary">{r.staffName ?? "—"}</td>
                   <td className="px-4 py-3">
-                    <span className={statusBadgeClass(r.status)}>{TNA_STATUS_LABELS[r.status]}</span>
+                    <span className={statusBadgeClass(r.status)}>{statusLabel(r.status)}</span>
                   </td>
                   <td className="px-4 py-3">
                     {r.tnaId ? (
@@ -232,13 +322,25 @@ export default async function TnaIndexPage({
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-6 text-center text-sm text-text-muted">
-                    No staff match these filters.
+                    No departments match these filters.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+      </div>
+    );
+  }
+
+  if (!canSubmitTna(session)) {
+    return (
+      <div className="max-w-lg mx-auto text-center py-16">
+        <h1 className="text-xl font-semibold text-text-primary mb-2">Training Need Analysis</h1>
+        <p className="text-sm text-text-secondary">
+          Only Heads of Department submit a Training Need Analysis. Speak to your HOD if you have training needs to
+          raise.
+        </p>
       </div>
     );
   }

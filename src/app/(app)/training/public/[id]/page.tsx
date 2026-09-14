@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { format } from "date-fns";
+import QRCode from "qrcode";
 import { requireSession } from "@/lib/guard";
 import { canManageTraining, canViewAllPme } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
@@ -15,6 +17,7 @@ import {
 import { AddParticipantForm } from "@/components/training/AddParticipantForm";
 import { ParticipantActionsWrapper } from "@/components/training/ParticipantActionsWrapper";
 import { CertificatePanel } from "@/components/training/CertificatePanel";
+import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import {
   addParticipant,
   removeParticipant,
@@ -69,6 +72,16 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
     : [];
 
   const myParticipation = training.participations.find((p) => p.userId === session.userId);
+
+  let qrDataUrl: string | null = null;
+  let checkinUrl: string | null = null;
+  if (manage) {
+    const hdrs = await headers();
+    const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
+    const proto = hdrs.get("x-forwarded-proto") ?? (process.env.NODE_ENV === "production" ? "https" : "http");
+    checkinUrl = `${proto}://${host}/checkin/${training.id}`;
+    qrDataUrl = await QRCode.toDataURL(checkinUrl, { width: 240, margin: 1 });
+  }
 
   // Regular staff only see their own participation row — not the full roster.
   const visibleParticipations = manage
@@ -141,6 +154,45 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
           <p className="text-text-primary">{training.hrdcClaimable ? "Yes" : "No"}</p>
         </div>
       </div>
+
+      {manage && qrDataUrl && checkinUrl && (
+        <div className="mb-8 rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] p-5 flex items-center gap-5">
+          {/* eslint-disable-next-line @next/next/no-img-element -- data: URL, next/image doesn't support this */}
+          <img
+            src={qrDataUrl}
+            alt="Check-in QR code"
+            width={140}
+            height={140}
+            className="rounded-lg border border-border"
+          />
+          <div>
+            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-1">
+              Self Check-in QR Code
+            </h3>
+            <p className="text-sm text-text-secondary mb-3">
+              Staff scan this, enter their Staff ID, and go straight to their evaluation form — no login needed.
+            </p>
+            <div className="flex gap-3">
+              <a
+                href={qrDataUrl}
+                download={`checkin-qr-${training.trainingCode}.png`}
+                className="rounded-xl border border-border text-sm font-medium px-3 py-1.5 text-text-secondary hover:bg-gray-50"
+              >
+                Download QR
+              </a>
+              <a
+                href={checkinUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border border-border text-sm font-medium px-3 py-1.5 text-text-secondary hover:bg-gray-50"
+              >
+                Open link
+              </a>
+              <CopyLinkButton text={checkinUrl} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {myParticipation && myParticipation.attendance === "PENDING" && (
         <div className="mb-8 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 flex items-center justify-between">

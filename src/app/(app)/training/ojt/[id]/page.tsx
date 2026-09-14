@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { ArrowLeft, Pencil, Eye } from "lucide-react";
 import { format } from "date-fns";
+import QRCode from "qrcode";
 import { requireSession } from "@/lib/guard";
 import { canManageOjt } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { TRAINER_TYPE_LABELS } from "@/lib/labels";
 import { AddParticipantForm } from "@/components/training/AddParticipantForm";
 import { OjtParticipantActionsWrapper } from "@/components/training/OjtParticipantActionsWrapper";
+import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { addOjtParticipant, removeOjtParticipant } from "@/app/(app)/training/ojt/actions";
 import type { ParticipateOjt, User } from "@/generated/prisma/client";
 
@@ -116,6 +119,16 @@ export default async function OjtDetailPage({ params }: { params: Promise<{ id: 
   const backHref = manage ? "/training/ojt" : "/training";
   const backLabel = manage ? "Back to OJT Records" : "Back to My Training";
 
+  let qrDataUrl: string | null = null;
+  let checkinUrl: string | null = null;
+  if (manage) {
+    const hdrs = await headers();
+    const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
+    const proto = hdrs.get("x-forwarded-proto") ?? (process.env.NODE_ENV === "production" ? "https" : "http");
+    checkinUrl = `${proto}://${host}/checkin/ojt/${ojt.id}`;
+    qrDataUrl = await QRCode.toDataURL(checkinUrl, { width: 240, margin: 1 });
+  }
+
   // Regular staff only see their own participation row — not the full roster.
   const visibleParticipants = manage
     ? ojt.participants
@@ -186,6 +199,45 @@ export default async function OjtDetailPage({ params }: { params: Promise<{ id: 
           </p>
         </div>
       </div>
+
+      {manage && qrDataUrl && checkinUrl && (
+        <div className="mb-8 rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] p-5 flex items-center gap-5">
+          {/* eslint-disable-next-line @next/next/no-img-element -- data: URL, next/image doesn't support this */}
+          <img
+            src={qrDataUrl}
+            alt="Check-in QR code"
+            width={140}
+            height={140}
+            className="rounded-lg border border-border"
+          />
+          <div>
+            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-1">
+              Self Check-in QR Code
+            </h3>
+            <p className="text-sm text-text-secondary mb-3">
+              Staff scan this, enter their Staff ID, and go straight to their OJT evaluation — no login needed.
+            </p>
+            <div className="flex gap-3">
+              <a
+                href={qrDataUrl}
+                download={`checkin-ojt-qr-${ojt.trainingCode}.png`}
+                className="rounded-xl border border-border text-sm font-medium px-3 py-1.5 text-text-secondary hover:bg-gray-50"
+              >
+                Download QR
+              </a>
+              <a
+                href={checkinUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border border-border text-sm font-medium px-3 py-1.5 text-text-secondary hover:bg-gray-50"
+              >
+                Open link
+              </a>
+              <CopyLinkButton text={checkinUrl} />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Participants</h3>

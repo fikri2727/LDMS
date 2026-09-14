@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { canManageElearning } from "@/lib/rbac";
 import { uploadFullPath, guessMimeType } from "@/lib/uploads";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -13,8 +14,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const kind = request.nextUrl.searchParams.get("kind");
 
-  const lesson = await prisma.elearningLesson.findUnique({ where: { id: Number(id) } });
+  const lesson = await prisma.elearningLesson.findUnique({
+    where: { id: Number(id) },
+    include: { module: true },
+  });
   if (!lesson) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Mirror the module player's own gate — a learner can't reach a lesson page
+  // for an unpublished module, so the raw file shouldn't be reachable either.
+  if (lesson.module.status !== "PUBLISHED" && !canManageElearning(session)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

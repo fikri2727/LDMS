@@ -1,11 +1,10 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { requireSession } from "@/lib/guard";
 import { canManageElearning } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { CertificateView } from "@/components/elearning/CertificateView";
+import { CertificateBackLink } from "@/components/elearning/CertificateBackLink";
 
 export default async function CertificatePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
@@ -23,12 +22,7 @@ export default async function CertificatePage({ params }: { params: Promise<{ id
 
   return (
     <div>
-      <Link
-        href="/elearning/learner"
-        className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary mb-4 print:hidden"
-      >
-        <ArrowLeft size={15} /> Back to My Learning
-      </Link>
+      <CertificateBackLink />
       <CertificateView
         staffName={certificate.user.staffName}
         moduleTitle={certificate.module.title}

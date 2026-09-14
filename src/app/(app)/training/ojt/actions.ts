@@ -7,6 +7,7 @@ import { requireSession } from "@/lib/guard";
 import { canManageOjt } from "@/lib/rbac";
 import { generateOjtCode, computeDays, computeHours } from "@/lib/training-code";
 import { parseOjtExcel } from "@/lib/ojt-excel";
+import { applyOjtSurveyAnswers } from "@/lib/survey";
 import type { TrainerType } from "@/generated/prisma/client";
 
 function readOjtFields(formData: FormData) {
@@ -41,9 +42,13 @@ async function createOjtRecord(fields: ReturnType<typeof readOjtFields>, created
 }
 
 /**
- * Admin/Clerk: key in an OJT session's details only. No participants are
- * attached yet — they're added afterwards by searching staff, or via the
- * Excel bulk-upload method, from the OJT detail page.
+ * Admin/Clerk keying in an OJT session for others: creates the session's
+ * details only, no participants attached yet — those are added afterwards
+ * by searching staff, or via the Excel bulk-upload method, from the OJT
+ * detail page. Anyone adding their OWN OJT (including a Clerk using "Add My
+ * OJT" — see the hidden `isSelf` field set by OjtForm) instead falls through
+ * to the self-service branch below, which enrolls them immediately with
+ * their own survey answers.
  */
 export async function createOjt(formData: FormData) {
   const session = await requireSession();
@@ -53,7 +58,10 @@ export async function createOjt(formData: FormData) {
     throw new Error("Title, Venue, and Trainer Name are required.");
   }
 
-  if (canManageOjt(session)) {
+  // "Add My OJT" from My Training always means the self-service flow below,
+  // even for a Clerk who otherwise keys in OJT sessions for others — the
+  // form marks that intent with a hidden `isSelf` field.
+  if (canManageOjt(session) && formData.get("isSelf") !== "1") {
     const ojt = await createOjtRecord(fields, session.userId);
     revalidatePath("/training/ojt");
     revalidatePath("/training");
@@ -241,15 +249,7 @@ export async function submitOjtSurvey(ojtId: number, participationId: number, fo
     throw new Error("You do not have permission to submit this evaluation.");
   }
 
-  await prisma.participateOjt.update({
-    where: { id: participationId },
-    data: {
-      q1: String(formData.get("q1") ?? "").trim().toUpperCase(),
-      q2: Number(formData.get("q2")) || null,
-      q3: Number(formData.get("q3")) || null,
-      attendance: "COMPLETED",
-    },
-  });
+  await applyOjtSurveyAnswers(participationId, formData);
 
   revalidatePath(`/training/ojt/${ojtId}`);
   revalidatePath("/training");

@@ -16,27 +16,27 @@ export function DashboardCard({
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-card)] ${className}`}
+      className={`relative overflow-hidden rounded-2xl border border-border bg-surface p-3.5 shadow-[var(--shadow-card)] flex flex-col ${className}`}
     >
       <div
         className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full opacity-10 blur-2xl"
         style={{ backgroundColor: accent }}
       />
-      <div className="relative flex items-center justify-between gap-2 mb-4">
+      <div className="relative flex items-center justify-between gap-2 mb-2.5">
         <div className="flex items-center gap-2">
           {Icon && (
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-xl shrink-0"
+              className="flex h-7 w-7 items-center justify-center rounded-xl shrink-0"
               style={{ backgroundColor: `${accent}1a`, color: accent }}
             >
-              <Icon size={15} />
+              <Icon size={13} />
             </div>
           )}
           <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
         </div>
         {subtitle}
       </div>
-      <div className="relative">{children}</div>
+      <div className="relative flex-1 min-h-0">{children}</div>
     </div>
   );
 }

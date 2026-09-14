@@ -6,9 +6,17 @@ import { prisma } from "@/lib/prisma";
 import { OjtForm } from "@/components/training/OjtForm";
 import { createOjt } from "@/app/(app)/training/ojt/actions";
 
-export default async function NewOjtPage() {
+export default async function NewOjtPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ self?: string }>;
+}) {
   const session = await requireSession();
-  const canKeyInForOthers = canManageOjt(session);
+  const { self } = await searchParams;
+  // "Add My OJT" (from My Training) always means the self-service, one-shot
+  // flow — even for a Clerk, who otherwise keys in OJT sessions for others.
+  const forSelf = self === "1";
+  const canKeyInForOthers = canManageOjt(session) && !forSelf;
   const backHref = canKeyInForOthers ? "/training/ojt" : "/training";
   const backLabel = canKeyInForOthers ? "Back to OJT Records" : "Back to My Training";
 

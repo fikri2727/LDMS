@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/guard";
 import { canReviewRequisitions, canViewAllRequisitions } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
-import { saveUpload } from "@/lib/uploads";
+import { saveUpload, deleteUpload } from "@/lib/uploads";
 
 export async function createRequisition(formData: FormData) {
   const session = await requireSession();
@@ -35,12 +35,16 @@ export async function createRequisition(formData: FormData) {
   const venue = String(formData.get("venue") ?? "").trim();
   const objective = String(formData.get("objective") ?? "").trim();
   const hrdcClaimableRaw = formData.get("hrdcClaimable");
+  const underAtpRaw = formData.get("underAtp");
   const trainingProvider = String(formData.get("trainingProvider") ?? "").trim();
   if (!title || !startTime || !endTime || !venue || !objective || !trainingProvider) {
     throw new Error("Please fill in all required fields.");
   }
   if (hrdcClaimableRaw !== "yes" && hrdcClaimableRaw !== "no") {
     throw new Error("Select whether this training is HRDC claimable.");
+  }
+  if (underAtpRaw !== "yes" && underAtpRaw !== "no") {
+    throw new Error("Select whether this training is under ATP (Annual Training Plan).");
   }
 
   const brochureFile = formData.get("brochureFile") as File | null;
@@ -64,6 +68,7 @@ export async function createRequisition(formData: FormData) {
       objective,
       fees,
       hrdcClaimable: hrdcClaimableRaw === "yes",
+      underAtp: underAtpRaw === "yes",
       trainingProvider,
       remarks: (formData.get("remarks") as string) || null,
       brochureFileName,
@@ -75,7 +80,7 @@ export async function createRequisition(formData: FormData) {
   redirect("/requisition");
 }
 
-export async function reviewRequisition(id: number, decision: "APPROVED" | "REJECTED") {
+export async function reviewRequisition(id: number, decision: "APPROVED" | "REJECTED" | "COMPLETED") {
   const session = await requireSession();
 
   const requisition = await prisma.trainingRequisition.findUnique({
@@ -83,12 +88,21 @@ export async function reviewRequisition(id: number, decision: "APPROVED" | "REJE
     include: { user: true },
   });
   if (!requisition) throw new Error("Requisition not found.");
-  if (requisition.status !== "PENDING") throw new Error("This requisition has already been reviewed.");
 
+  // Admins can approve/reject/complete on behalf of anyone and revise a
+  // decision that's already been made; an HOD only ever makes the one-time
+  // Approve/Reject call for their own direct report, and only while it's
+  // still pending — that part is unchanged, and HODs can't set Completed.
+  const isAdmin = canViewAllRequisitions(session);
   const isOwnHod = canReviewRequisitions(session) && requisition.user.hodId === session.userId;
-  const isOrphanFallback = session.roleType === "ADMIN" && requisition.user.hodId == null;
-  if (!isOwnHod && !isOrphanFallback) {
+  if (decision === "COMPLETED" && !isAdmin) {
+    throw new Error("Only an Admin can mark a requisition as Completed.");
+  }
+  if (!isAdmin && !isOwnHod) {
     throw new Error("Not authorized to review this requisition.");
+  }
+  if (!isAdmin && requisition.status !== "PENDING") {
+    throw new Error("This requisition has already been reviewed.");
   }
 
   await prisma.trainingRequisition.update({
@@ -102,6 +116,21 @@ export async function reviewRequisition(id: number, decision: "APPROVED" | "REJE
 
   revalidatePath("/requisition");
   revalidatePath(`/requisition/${id}`);
+}
+
+/** Admin-only: permanently removes a training requisition (and its participants/brochure). */
+export async function deleteRequisition(id: number) {
+  const session = await requireSession();
+  if (!canViewAllRequisitions(session)) {
+    throw new Error("Only an Admin can delete a training requisition.");
+  }
+
+  const requisition = await prisma.trainingRequisition.findUniqueOrThrow({ where: { id } });
+  await prisma.trainingRequisition.delete({ where: { id } });
+  if (requisition.brochureFilePath) await deleteUpload(requisition.brochureFilePath);
+
+  revalidatePath("/requisition");
+  redirect("/requisition");
 }
 
 export async function updateGrantId(id: number, grantId: string) {

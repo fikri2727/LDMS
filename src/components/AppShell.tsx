@@ -1,12 +1,19 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, KeyRound } from "lucide-react";
 import clsx from "clsx";
 import { Sidebar } from "@/components/Sidebar";
 import { UserMenu } from "@/components/UserMenu";
+import { LogoutButton } from "@/components/LogoutButton";
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "U";
+}
 
 export function AppShell({
   canManageStaff,
@@ -70,7 +77,9 @@ export function AppShell({
         >
           <Menu size={22} />
         </button>
-        <Image src="/tamco-logo.png" alt="TAMCO" width={1024} height={305} unoptimized className="h-5 w-auto" />
+        <Link href="/dashboard" aria-label="Go to dashboard">
+          <Image src="/tamco-logo.png" alt="TAMCO" width={1024} height={305} unoptimized className="h-5 w-auto" />
+        </Link>
         <span className="text-text-primary text-sm font-medium">L&D Management</span>
       </div>
 
@@ -98,15 +107,17 @@ export function AppShell({
           >
             <X size={18} />
           </button>
-          <Image
-            src="/tamco-logo.png"
-            alt="TAMCO"
-            width={1024}
-            height={305}
-            priority
-            unoptimized
-            className="h-8 w-auto"
-          />
+          <Link href="/dashboard" aria-label="Go to dashboard">
+            <Image
+              src="/tamco-logo.png"
+              alt="TAMCO"
+              width={1024}
+              height={305}
+              priority
+              unoptimized
+              className="h-12 w-auto"
+            />
+          </Link>
           <p className="text-text-muted text-xs mt-2">L&D Management</p>
         </div>
         <Sidebar
@@ -119,9 +130,26 @@ export function AppShell({
           isSupervisor={isSupervisor}
           isElearningCreator={isElearningCreator}
         />
-        {/* On desktop this same profile access moves into the header instead — see below. */}
+        {/* On desktop this same profile access moves into the header instead — see below.
+            Shown flat here (not behind a dropdown) since a small avatar tap target with no
+            visible menu affordance was easy to miss on mobile. */}
         <div className="lg:hidden mt-auto px-3 py-4 border-t border-border">
-          <UserMenu staffName={staffName} staffNo={staffNo} roleLabel={roleLabel} />
+          <div className="flex items-center gap-2.5 px-2 py-1.5 mb-1">
+            <span className="flex items-center justify-center h-8 w-8 rounded-full bg-primary-soft text-primary-dark text-xs font-semibold shrink-0">
+              {initials(staffName)}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-text-primary leading-tight truncate">{staffName}</span>
+              <span className="block text-xs text-text-muted leading-tight">{roleLabel}</span>
+            </span>
+          </div>
+          <Link
+            href="/account"
+            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-text-secondary hover:bg-gray-50 hover:text-text-primary transition-colors"
+          >
+            <KeyRound size={15} /> Change Password
+          </Link>
+          <LogoutButton className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-left text-text-secondary hover:bg-gray-50 hover:text-text-primary transition-colors" />
         </div>
       </aside>
 
@@ -131,7 +159,7 @@ export function AppShell({
           <UserMenu staffName={staffName} staffNo={staffNo} roleLabel={roleLabel} />
         </header>
         <main className="flex-1 bg-[var(--background)] overflow-y-auto overflow-x-auto pt-14 lg:pt-0">
-          <div className="p-6 sm:p-8">{children}</div>
+          <div className="p-4 sm:p-5 h-full">{children}</div>
         </main>
       </div>
     </div>

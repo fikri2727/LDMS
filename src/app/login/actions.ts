@@ -31,7 +31,10 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
     return { error: "Invalid staff number or password." };
   }
 
-  const session = await getSession();
+  // "Remember me" extends the session cookie to 30 days; otherwise it keeps
+  // the default (see sessionOptions).
+  const remember = formData.get("remember") === "on";
+  const session = await getSession(remember ? { maxAge: 60 * 60 * 24 * 30 } : undefined);
   session.userId = user.id;
   session.staffNo = user.staffNo;
   session.staffName = user.staffName;

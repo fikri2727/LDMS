@@ -2,10 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, ClipboardCheck, Layers, Users, BadgeCheck, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { PME_STATUS_LABELS } from "@/lib/labels";
-import { CollapsibleSection } from "@/components/training/CollapsibleSection";
 
 export interface PmeRecordRow {
   id: number;
@@ -14,6 +13,109 @@ export interface PmeRecordRow {
   trainingTitle: string;
   status: string;
   createdAt: string;
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "U";
+}
+
+const STATUS_STYLE: Record<string, { badge: string; avatar: string; bar: string }> = {
+  VERIFIED: { badge: "bg-primary/10 text-primary-dark", avatar: "bg-primary/15 text-primary-dark", bar: "#46bea2" },
+  PENDING: { badge: "bg-purple/10 text-purple", avatar: "bg-purple/15 text-purple", bar: "#6d3ecd" },
+};
+
+function SummaryChip({
+  icon: Icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
+  label: string;
+  value: number;
+  accent: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-3.5 py-2.5">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: `${accent}1a` }}>
+        <Icon size={15} className="shrink-0" style={{ color: accent }} />
+      </div>
+      <div>
+        <p className="text-[10px] font-medium text-text-muted uppercase tracking-wide leading-none mb-1">{label}</p>
+        <p className="text-sm font-semibold text-text-primary leading-none">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function RecordCard({ r }: { r: PmeRecordRow }) {
+  const style = STATUS_STYLE[r.status] ?? STATUS_STYLE.PENDING;
+  return (
+    <Link
+      href={`/training/pme/${r.id}`}
+      className="group flex items-start gap-3 rounded-xl border border-border bg-surface p-3 hover:border-primary hover:shadow-[var(--shadow-card)] transition-all"
+    >
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${style.avatar}`}>
+        {initials(r.staffName)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-text-primary truncate group-hover:text-primary-dark">{r.staffName}</p>
+        <p className="text-xs text-text-muted">{r.staffNo}</p>
+        <div className="flex items-center justify-between mt-2 gap-2">
+          <span className={`inline-flex rounded-full text-[10px] font-medium px-2 py-0.5 whitespace-nowrap ${style.badge}`}>
+            {PME_STATUS_LABELS[r.status]}
+          </span>
+          <span className="text-[10px] text-text-muted whitespace-nowrap">
+            {format(new Date(r.createdAt), "d MMM yyyy")}
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function GroupCard({ title, recs, defaultOpen }: { title: string; recs: PmeRecordRow[]; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const verifiedCount = recs.filter((r) => r.status === "VERIFIED").length;
+  const percent = recs.length ? Math.round((verifiedCount / recs.length) * 100) : 0;
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-[var(--shadow-card)]">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left hover:bg-gray-50 transition-colors"
+      >
+        {open ? (
+          <ChevronDown size={16} className="shrink-0 text-text-muted" />
+        ) : (
+          <ChevronRight size={16} className="shrink-0 text-text-muted" />
+        )}
+        <ClipboardCheck size={15} className="shrink-0 text-primary-dark" />
+        <span className="text-sm font-semibold text-text-primary truncate">{title}</span>
+        <span className="shrink-0 text-xs text-text-muted">({recs.length})</span>
+
+        <div className="ml-auto flex shrink-0 items-center gap-3">
+          <div className="hidden sm:flex items-center gap-1.5 w-24">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+              <div className="h-full rounded-full transition-all" style={{ width: `${percent}%`, background: "#46bea2" }} />
+            </div>
+          </div>
+          <span className="whitespace-nowrap text-xs text-text-muted">
+            {verifiedCount}/{recs.length} verified
+          </span>
+        </div>
+      </button>
+
+      {open && (
+        <div className="grid grid-cols-1 gap-3 border-t border-border bg-gray-50/60 p-4 sm:grid-cols-2 xl:grid-cols-3">
+          {recs.map((r) => (
+            <RecordCard key={r.id} r={r} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function PmeGroupedTable({ rows, emptyLabel }: { rows: PmeRecordRow[]; emptyLabel: string }) {
@@ -56,6 +158,9 @@ export function PmeGroupedTable({ rows, emptyLabel }: { rows: PmeRecordRow[]; em
     return [...map.entries()];
   }, [filtered]);
 
+  const verifiedTotal = filtered.filter((r) => r.status === "VERIFIED").length;
+  const pendingTotal = filtered.length - verifiedTotal;
+
   function handleReset() {
     setSearch("");
     setStartFilter("");
@@ -69,8 +174,15 @@ export function PmeGroupedTable({ rows, emptyLabel }: { rows: PmeRecordRow[]; em
   }
 
   return (
-    <div className="mb-8">
-      <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+    <div className="max-w-4xl mb-8">
+      <div className="flex flex-wrap gap-3 mb-4">
+        <SummaryChip icon={Layers} label="Trainings" value={groups.length} accent="#6d3ecd" />
+        <SummaryChip icon={Users} label="Records" value={filtered.length} accent="#1b75bc" />
+        <SummaryChip icon={BadgeCheck} label="Verified" value={verifiedTotal} accent="#1d8e72" />
+        <SummaryChip icon={Clock} label="Pending" value={pendingTotal} accent="#d97706" />
+      </div>
+
+      <div className="rounded-2xl border border-border bg-surface p-3.5 mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-wrap items-end gap-2">
           <div>
             <label className="block text-xs text-text-muted mb-1">Start Date</label>
@@ -124,36 +236,11 @@ export function PmeGroupedTable({ rows, emptyLabel }: { rows: PmeRecordRow[]; em
       {groups.length === 0 ? (
         <p className="text-sm text-text-muted">No records match these filters.</p>
       ) : (
-        groups.map(([title, recs]) => (
-          <CollapsibleSection key={title} title={`${title} (${recs.length})`} defaultOpen>
-            <div className="bg-surface rounded-2xl border border-border overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Staff</th>
-                    <th className="px-4 py-3 font-medium">Staff No.</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Created</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {recs.map((r) => (
-                    <tr key={r.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-text-primary">
-                        <Link href={`/training/pme/${r.id}`} className="text-primary-dark font-medium hover:underline">
-                          {r.staffName}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 text-text-secondary">{r.staffNo}</td>
-                      <td className="px-4 py-3 text-text-secondary">{PME_STATUS_LABELS[r.status]}</td>
-                      <td className="px-4 py-3 text-text-secondary">{format(new Date(r.createdAt), "d MMM yyyy")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CollapsibleSection>
-        ))
+        <div className="space-y-3">
+          {groups.map(([title, recs]) => (
+            <GroupCard key={title} title={title} recs={recs} defaultOpen />
+          ))}
+        </div>
       )}
     </div>
   );

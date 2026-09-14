@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { deleteOjt } from "@/app/(app)/training/ojt/actions";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { SortableTh, type SortDir } from "@/components/ui/SortableTh";
+import { ParticipantsModal, type ParticipantSummary } from "@/components/training/ParticipantsModal";
 
 type SortKey =
   | "code"
@@ -48,6 +49,7 @@ export interface OjtRow {
   totalManHour: number;
   par: number;
   comp: number;
+  participants: ParticipantSummary[];
 }
 
 export function OjtRecordsTable({ rows }: { rows: OjtRow[] }) {
@@ -61,6 +63,7 @@ export function OjtRecordsTable({ rows }: { rows: OjtRow[] }) {
   const [pending, startTransition] = useTransition();
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [activeRowId, setActiveRowId] = useState<number | null>(null);
 
   const trainers = useMemo(
     () => Array.from(new Set(rows.map((r) => r.trainerName))).filter(Boolean).sort(),
@@ -102,6 +105,7 @@ export function OjtRecordsTable({ rows }: { rows: OjtRow[] }) {
   }
 
   const totalManHours = useMemo(() => filtered.reduce((sum, r) => sum + r.totalManHour, 0), [filtered]);
+  const activeRow = rows.find((r) => r.id === activeRowId) ?? null;
   const confirm = useConfirm();
 
   async function handleDelete(id: number, title: string) {
@@ -196,7 +200,7 @@ export function OjtRecordsTable({ rows }: { rows: OjtRow[] }) {
           <thead className="bg-gray-50 text-left text-text-muted text-[11px] uppercase tracking-wide">
             <tr>
               <th className="px-2 py-2 font-medium w-6">No</th>
-              <SortableTh label="Code" active={sortKey === "code"} dir={sortDir} onClick={() => toggleSort("code")} className="px-2 py-2 w-28 break-words" />
+              <SortableTh label="Code" active={sortKey === "code"} dir={sortDir} onClick={() => toggleSort("code")} className="px-2 py-2 w-28" />
               <SortableTh label="Title" active={sortKey === "title"} dir={sortDir} onClick={() => toggleSort("title")} className="px-2 py-2 w-32 break-words" />
               <SortableTh label="Key In By" active={sortKey === "keyInBy"} dir={sortDir} onClick={() => toggleSort("keyInBy")} className="px-2 py-2 w-24 break-words" />
               <SortableTh label="Start Date" active={sortKey === "startDate"} dir={sortDir} onClick={() => toggleSort("startDate")} className="px-2 py-2 w-20" />
@@ -215,7 +219,16 @@ export function OjtRecordsTable({ rows }: { rows: OjtRow[] }) {
               return (
                 <tr key={r.id} className="hover:bg-gray-50 align-top">
                   <td className="px-2 py-2 text-text-muted">{i + 1}</td>
-                  <td className="px-2 py-2 text-text-secondary font-mono break-words">{r.trainingCode}</td>
+                  <td className="px-2 py-2 font-mono whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => setActiveRowId(r.id)}
+                      title="View participants & evaluation status"
+                      className="text-primary-dark hover:underline"
+                    >
+                      {r.trainingCode}
+                    </button>
+                  </td>
                   <td className="px-2 py-2 break-words">
                     <Link href={`/training/ojt/${r.id}`} className="text-primary-dark font-medium hover:underline">
                       {r.title}
@@ -276,6 +289,15 @@ export function OjtRecordsTable({ rows }: { rows: OjtRow[] }) {
           )}
         </table>
       </div>
+
+      {activeRow && (
+        <ParticipantsModal
+          title={activeRow.title}
+          code={activeRow.trainingCode}
+          participants={activeRow.participants}
+          onClose={() => setActiveRowId(null)}
+        />
+      )}
     </div>
   );
 }

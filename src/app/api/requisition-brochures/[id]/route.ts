@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { canReviewRequisitions, canViewAllRequisitions } from "@/lib/rbac";
 import { uploadFullPath, guessMimeType } from "@/lib/uploads";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,8 +12,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { id } = await params;
-  const requisition = await prisma.trainingRequisition.findUnique({ where: { id: Number(id) } });
+  const requisition = await prisma.trainingRequisition.findUnique({
+    where: { id: Number(id) },
+    include: { user: true },
+  });
   if (!requisition || !requisition.brochureFilePath || !requisition.brochureFileName) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Mirror the same visibility rule as the requisition detail page — the
+  // brochure attachment must not be reachable by anyone who couldn't already
+  // see the requisition itself.
+  const isOwner = requisition.userId === session.userId;
+  const isHodReviewer = canReviewRequisitions(session) && requisition.user.hodId === session.userId;
+  const isOrphanFallback = session.roleType === "ADMIN" && requisition.user.hodId == null;
+  const canView = isOwner || isHodReviewer || canViewAllRequisitions(session) || isOrphanFallback;
+  if (!canView) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

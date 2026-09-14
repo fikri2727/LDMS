@@ -117,5 +117,6 @@ export const TNA_STATUS_LABELS: Record<string, string> = {
 export const REQUISITION_STATUS_LABELS: Record<string, string> = {
   PENDING: "Pending Approval",
   APPROVED: "Approved",
+  COMPLETED: "Completed",
   REJECTED: "Rejected",
 };

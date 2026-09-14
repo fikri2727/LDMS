@@ -23,6 +23,10 @@ export const sessionOptions: SessionOptions = {
   },
 };
 
-export async function getSession(): Promise<IronSession<SessionData>> {
-  return getIronSession<SessionData>(await cookies(), sessionOptions);
+export async function getSession(overrides?: { maxAge?: number }): Promise<IronSession<SessionData>> {
+  const options =
+    overrides?.maxAge != null
+      ? { ...sessionOptions, cookieOptions: { ...sessionOptions.cookieOptions, maxAge: overrides.maxAge } }
+      : sessionOptions;
+  return getIronSession<SessionData>(await cookies(), options);
 }

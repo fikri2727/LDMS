@@ -22,7 +22,7 @@ export function RecentTrainingRecords({ records }: { records: RecentTrainingReco
   return (
     <ul className="divide-y divide-border">
       {records.map((r) => (
-        <li key={r.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+        <li key={r.id} className="flex items-center justify-between gap-3 py-1 first:pt-0 last:pb-0">
           <div className="min-w-0">
             <Link href={r.href} className="text-sm font-medium text-text-primary hover:text-primary-dark truncate block">
               {r.title}

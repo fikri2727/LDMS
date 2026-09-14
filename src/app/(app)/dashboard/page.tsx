@@ -47,7 +47,7 @@ export default async function DashboardPage({
       orgWide ? Promise.resolve(null) : getMonthlyHoursForUser(range, session.userId),
       getTop5Trainers(range, orgWide ? undefined : session.userId),
       orgWide ? getDepartmentBreakdown(range) : Promise.resolve(null),
-      orgWide ? Promise.resolve(null) : getRecentTrainingRecords(session.userId, 5),
+      orgWide ? Promise.resolve(null) : getRecentTrainingRecords(session.userId, 4),
       !orgWide && session.departmentId ? getDepartmentBreakdown(range, session.departmentId) : Promise.resolve(null),
     ]);
 
@@ -56,7 +56,7 @@ export default async function DashboardPage({
   const balanceHours = orgWide ? null : Math.round((hourTarget - overview.totalHour) * 100) / 100;
 
   return (
-    <div className="relative">
+    <div className="relative h-full flex flex-col">
       {/* subtle futuristic backdrop */}
       <div className="pointer-events-none absolute -inset-x-4 -inset-y-6 -z-10 overflow-hidden rounded-[2rem]">
         <div
@@ -74,23 +74,23 @@ export default async function DashboardPage({
         <span className="absolute bottom-10 left-1/4 h-1 w-1 rounded-full bg-primary/30 animate-drift [animation-delay:6s]" />
       </div>
 
-      <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
+      <div className="flex items-center justify-between mb-3 gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary flex items-center gap-2">
+          <h1 className="text-xl font-semibold text-text-primary flex items-center gap-2">
             Welcome back, {session.staffName.split(" ")[0]} <span aria-hidden>👋</span>
           </h1>
-          <p className="text-sm text-text-secondary mt-0.5 flex items-center gap-1.5">
-            <Sparkles size={13} className="text-primary" /> Here&apos;s your training overview.
+          <p className="text-xs text-text-secondary mt-0.5 flex items-center gap-1.5">
+            <Sparkles size={12} className="text-primary" /> Here&apos;s your training overview.
           </p>
         </div>
         <DateRangeFilter start={range.start.toISOString().slice(0, 10)} end={range.end.toISOString().slice(0, 10)} />
       </div>
 
-      <div className="mb-6">
+      <div className="mb-3">
         <OverviewTiles overview={overview} showStaffTrained={orgWide} balanceHours={balanceHours} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
         <DashboardCard title="Public / Inhouse vs OJT vs E-Learning" icon={PieChartIcon} accent="#46BEA2">
           <PublicOjtPie data={split} />
         </DashboardCard>
@@ -106,26 +106,30 @@ export default async function DashboardPage({
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-1 min-h-0">
         <DashboardCard
           title={orgWide ? "Department Avg. Training Hours / Staff" : "My Monthly Hours"}
           icon={BarChart3}
           accent="#46BEA2"
           className="lg:col-span-2"
         >
-          {orgWide ? (
-            <DepartmentBarChart data={departmentData!} metric="avgHour" target={hourTarget} />
-          ) : (
-            <MonthlyHoursChart data={monthlyHours!} />
-          )}
-          {!orgWide && myDepartment && (
-            <DepartmentHourSummary
-              departmentName={myDepartment.departmentFullName}
-              staffCount={myDepartment.staffCount}
-              totalNeeded={Math.round(myDepartment.staffCount * hourTarget)}
-              currentHours={myDepartment.manHour}
-            />
-          )}
+          <div className="h-full flex flex-col">
+            <div className="flex-1 min-h-0">
+              {orgWide ? (
+                <DepartmentBarChart data={departmentData!} metric="avgHour" target={hourTarget} />
+              ) : (
+                <MonthlyHoursChart data={monthlyHours!} />
+              )}
+            </div>
+            {!orgWide && myDepartment && (
+              <DepartmentHourSummary
+                departmentName={myDepartment.departmentFullName}
+                staffCount={myDepartment.staffCount}
+                totalNeeded={Math.round(myDepartment.staffCount * hourTarget)}
+                currentHours={myDepartment.manHour}
+              />
+            )}
+          </div>
         </DashboardCard>
         <DashboardCard title={orgWide ? "Top 5 Trainers" : "My Top Trainers"} icon={Trophy} accent="#6D3ECD">
           <TopTrainersTable data={topTrainers} />

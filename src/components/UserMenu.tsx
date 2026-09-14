@@ -14,10 +14,15 @@ export function UserMenu({
   staffName,
   staffNo,
   roleLabel,
+  openUpward,
 }: {
   staffName: string;
   staffNo: string;
   roleLabel: string;
+  /** The mobile drawer's copy sits pinned to the bottom of the sidebar, with
+   * no room below it — opening downward gets clipped by the sidebar's own
+   * scroll container and is invisible. Opens above the button instead. */
+  openUpward?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -56,7 +61,11 @@ export function UserMenu({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-border bg-surface shadow-[var(--shadow-card)] p-1.5 z-20">
+        <div
+          className={`absolute right-0 w-56 rounded-xl border border-border bg-surface shadow-[var(--shadow-card)] p-1.5 z-20 ${
+            openUpward ? "bottom-full mb-2" : "top-full mt-2"
+          }`}
+        >
           <div className="px-2.5 py-2">
             <p className="text-sm font-medium text-text-primary truncate">{staffName}</p>
             <p className="text-xs text-text-muted">

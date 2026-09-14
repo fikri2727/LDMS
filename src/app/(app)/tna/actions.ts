@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/guard";
-import { canManageTna } from "@/lib/rbac";
+import { canManageTna, canSubmitTna } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import type { TnaSection, TnaTrainingType } from "@/generated/prisma/client";
 
@@ -20,6 +20,9 @@ interface TnaItemPayload {
 
 export async function saveTna(formData: FormData) {
   const session = await requireSession();
+  if (!canSubmitTna(session)) {
+    throw new Error("Only Heads of Department submit a Training Need Analysis.");
+  }
   const year = Number(formData.get("year"));
   const items = JSON.parse(String(formData.get("payload") ?? "[]")) as TnaItemPayload[];
 

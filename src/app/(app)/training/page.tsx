@@ -8,6 +8,7 @@ import { PROGRAM_LABELS } from "@/lib/labels";
 import { computeDays, computeHours } from "@/lib/training-code";
 import { getModuleEstimatedHours } from "@/lib/elearning";
 import { MyTrainingTable, type MyTrainingRow } from "@/components/training/MyTrainingTable";
+import { MyTrainingStats } from "@/components/training/MyTrainingStats";
 
 export default async function TrainingIndexPage() {
   const session = await requireSession();
@@ -116,12 +117,24 @@ export default async function TrainingIndexPage() {
     ...elearningRows,
   ].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 
+  const completedRows = rows.filter((r) => r.status === "COMPLETED");
+  const stats = {
+    total: rows.length,
+    pending: rows.filter((r) => r.status === "PENDING").length,
+    completed: completedRows.length,
+    totalHours: completedRows.reduce((sum, r) => sum + r.totalHours, 0),
+  };
+
   return (
     <div>
+      <div className="mb-6">
+        <MyTrainingStats {...stats} />
+      </div>
+
       <div className="flex items-center justify-between mb-4">
         <p className="text-text-muted text-sm">{rows.length} training record(s)</p>
         <Link
-          href="/training/ojt/new"
+          href="/training/ojt/new?self=1"
           className="flex items-center gap-1.5 rounded-xl bg-primary-dark hover:bg-primary text-white text-sm font-medium px-4 py-2 transition-colors"
         >
           <Plus size={16} /> Add My OJT

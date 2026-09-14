@@ -66,6 +66,13 @@ export default async function PublicTrainingListPage() {
         abs,
         pmeComp,
         pmePend,
+        participants: t.participations.map((p) => ({
+          staffNo: p.user.staffNo,
+          staffName: p.user.staffName,
+          department: p.user.department?.name ?? "—",
+          attendance: p.attendance,
+          pmeStatus: p.pme?.status ?? null,
+        })),
       };
     });
 
@@ -76,6 +83,9 @@ export default async function PublicTrainingListPage() {
         program: t.program,
         startDate: t.startDate.toISOString(),
         endDate: t.endDate.toISOString(),
+        startTime: t.startTime,
+        endTime: t.endTime,
+        totalDays: computeDays(t.startDate, t.endDate),
         platform: t.platform,
         function: t.function,
         cost: t.cost,
@@ -103,10 +113,13 @@ export default async function PublicTrainingListPage() {
 
     const ojts = await prisma.ojt.findMany({
       orderBy: { startDate: "desc" },
-      include: { participants: true },
+      include: { participants: { include: { user: true } } },
     });
 
-    const ojtRows: OjtReportRow[] = ojts.map((o) => {
+    // One row per participant (not per OJT session) — the training's own columns
+    // (code, title, trainer, dates...) repeat down every row in that group, and
+    // the serial number only appears once, on the first row of each group.
+    const ojtRows: OjtReportRow[] = ojts.flatMap((o, ojtIndex) => {
       const par = o.participants.length;
       const comp = o.participants.filter((p) => p.attendance === "COMPLETED").length;
       const pend = o.participants.filter((p) => p.attendance === "PENDING").length;
@@ -116,8 +129,7 @@ export default async function PublicTrainingListPage() {
       const avgSkillBefore = average(skillBefore);
       const avgSkillAfter = average(skillAfter);
 
-      return {
-        id: o.id,
+      const shared = {
         trainingCode: o.trainingCode,
         title: o.title,
         trainerType: o.trainerType,
@@ -128,15 +140,28 @@ export default async function PublicTrainingListPage() {
         endTime: o.endTime,
         totalDay: o.totalDay,
         totalHour: o.totalHour,
-        totalManHour: Math.round(o.totalDay * o.totalHour * par * 100) / 100,
+        // Man-hours delivered so far — only participants who actually completed
+        // the OJT count, not ones still pending check-in/evaluation.
+        totalManHour: Math.round(o.totalDay * o.totalHour * comp * 100) / 100,
         par,
         comp,
         pend,
         abs,
         avgSkillBefore,
         avgSkillAfter,
-        avgSkillImprovement: avgSkillBefore != null && avgSkillAfter != null ? Math.round((avgSkillAfter - avgSkillBefore) * 100) / 100 : null,
+        avgSkillImprovement:
+          avgSkillBefore != null && avgSkillAfter != null ? Math.round((avgSkillAfter - avgSkillBefore) * 100) / 100 : null,
       };
+
+      if (o.participants.length === 0) {
+        return [{ ...shared, ojtGroupNo: ojtIndex + 1, participantName: "—" }];
+      }
+
+      return o.participants.map((p, pIndex) => ({
+        ...shared,
+        ojtGroupNo: pIndex === 0 ? ojtIndex + 1 : null,
+        participantName: p.user.staffName,
+      }));
     });
 
     return (

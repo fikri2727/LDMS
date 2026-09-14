@@ -1,7 +1,7 @@
 export interface RequisitionCardData {
   id: number;
   title: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "COMPLETED" | "REJECTED";
   trainingDate: string;
   trainingEndDate: string | null;
   startTime: string;
@@ -12,6 +12,7 @@ export interface RequisitionCardData {
   remarks: string | null;
   fees: number;
   hrdcClaimable: boolean;
+  underAtp: boolean;
   grantId: string | null;
   brochureFileName: string | null;
   createdAt: string;

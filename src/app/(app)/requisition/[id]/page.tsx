@@ -5,15 +5,19 @@ import { format } from "date-fns";
 import { requireSession } from "@/lib/guard";
 import { canReviewRequisitions, canViewAllRequisitions } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
-import { REQUISITION_STATUS_LABELS } from "@/lib/labels";
+import { REQUISITION_STATUS_LABELS, DESIGNATION_LABELS } from "@/lib/labels";
 import { formatDateRange } from "@/lib/date-range";
+import { deriveRequisitionDisplayStatus } from "@/lib/requisition-status";
 import { RequisitionReviewButtons } from "@/components/requisition/RequisitionReviewButtons";
+import { DeleteRequisitionButton } from "@/components/requisition/DeleteRequisitionButton";
+import { RequisitionPdfButton } from "@/components/requisition/RequisitionPdfButton";
 import { GrantIdForm } from "@/components/requisition/GrantIdForm";
 import { reviewRequisition, updateGrantId } from "../actions";
 
 const STATUS_STYLES: Record<string, string> = {
   PENDING: "bg-purple/10 text-purple",
   APPROVED: "bg-primary/10 text-primary-dark",
+  COMPLETED: "bg-blue-50 text-blue-600",
   REJECTED: "bg-rose-50 text-rose-600",
 };
 
@@ -41,12 +45,21 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
   if (!requisition) notFound();
 
   const isOwner = requisition.userId === session.userId;
+  const isAdmin = canViewAllRequisitions(session);
   const isHodReviewer = canReviewRequisitions(session) && requisition.user.hodId === session.userId;
-  const isOrphanFallback = session.roleType === "ADMIN" && requisition.user.hodId == null;
-  const canView = isOwner || isHodReviewer || canViewAllRequisitions(session) || isOrphanFallback;
+  const canView = isOwner || isHodReviewer || isAdmin;
   if (!canView) redirect("/requisition");
 
-  const canReview = (isHodReviewer || isOrphanFallback) && requisition.status === "PENDING";
+  // HODs make a one-time call while it's pending; Admins can approve/reject
+  // (and revise an existing decision) at any time — see reviewRequisition.
+  const canReview = isAdmin || (isHodReviewer && requisition.status === "PENDING");
+  const isRevision = isAdmin && requisition.status !== "PENDING";
+  const displayStatus = deriveRequisitionDisplayStatus(
+    requisition.status,
+    requisition.trainingDate,
+    requisition.trainingEndDate
+  );
+  const canDownloadPdf = isAdmin && (displayStatus === "APPROVED" || displayStatus === "COMPLETED");
 
   return (
     <div>
@@ -61,9 +74,37 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
             {requisition.user.staffName} ({requisition.user.staffNo}) · {requisition.user.department?.name ?? "—"}
           </p>
         </div>
-        <span className={`inline-flex rounded-full text-xs font-medium px-3 py-1.5 ${STATUS_STYLES[requisition.status]}`}>
-          {REQUISITION_STATUS_LABELS[requisition.status]}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className={`inline-flex rounded-full text-xs font-medium px-3 py-1.5 ${STATUS_STYLES[displayStatus]}`}>
+            {REQUISITION_STATUS_LABELS[displayStatus]}
+          </span>
+          {canDownloadPdf && (
+            <RequisitionPdfButton
+              title={requisition.title}
+              applicantName={requisition.user.staffName}
+              applicantDept={requisition.user.department?.name ?? "—"}
+              dateApply={format(requisition.createdAt, "d MMM yyyy")}
+              participants={requisition.participants.map((p) => ({
+                staffName: p.user.staffName,
+                position: DESIGNATION_LABELS[p.user.designation] ?? p.user.designation,
+              }))}
+              trainingDateRange={formatDateRange(requisition.trainingDate, requisition.trainingEndDate)}
+              time={`${requisition.startTime} – ${requisition.endTime}`}
+              venue={requisition.venue}
+              fees={`RM ${requisition.fees.toFixed(2)}`}
+              hrdcClaimable={requisition.hrdcClaimable}
+              grantId={requisition.grantId}
+              underAtp={requisition.underAtp}
+              remarks={requisition.remarks}
+              trainingProvider={requisition.trainingProvider}
+              objective={requisition.objective}
+              approverName={requisition.reviewedBy?.staffName ?? null}
+              approverRoleLabel={requisition.reviewedBy ? (requisition.reviewedBy.isHod ? "Head of Department" : "Admin") : null}
+              approvedDate={requisition.reviewedAt ? format(requisition.reviewedAt, "d MMM yyyy") : null}
+            />
+          )}
+          {isAdmin && <DeleteRequisitionButton id={requisition.id} title={requisition.title} />}
+        </div>
       </div>
 
       <div className="bg-surface rounded-2xl border border-border shadow-[var(--shadow-card)] p-6 grid grid-cols-2 gap-5 mb-6">
@@ -88,7 +129,8 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
         <Field label="Training Provider" value={requisition.trainingProvider} />
         <Field label="Fees" value={`RM ${requisition.fees.toFixed(2)}`} />
         <Field label="HRDC Claimable" value={requisition.hrdcClaimable ? "Yes" : "No"} />
-        {canViewAllRequisitions(session) ? (
+        <Field label="Under ATP" value={requisition.underAtp ? "Yes" : "No"} />
+        {isAdmin ? (
           <div>
             <p className="text-xs text-text-muted uppercase tracking-wide mb-1">Grant ID</p>
             <GrantIdForm
@@ -128,7 +170,13 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
         {requisition.reviewedBy && (
           <div className="col-span-2 border-t border-border pt-4">
             <Field
-              label={requisition.status === "APPROVED" ? "Approved By" : "Rejected By"}
+              label={
+                requisition.status === "REJECTED"
+                  ? "Rejected By"
+                  : requisition.status === "COMPLETED"
+                    ? "Marked Completed By"
+                    : "Approved By"
+              }
               value={`${requisition.reviewedBy.staffName} · ${format(requisition.reviewedAt!, "d MMM yyyy")}`}
             />
           </div>
@@ -136,16 +184,31 @@ export default async function RequisitionDetailPage({ params }: { params: Promis
       </div>
 
       {canReview && (
-        <RequisitionReviewButtons
-          onApprove={async () => {
-            "use server";
-            await reviewRequisition(requisition.id, "APPROVED");
-          }}
-          onReject={async () => {
-            "use server";
-            await reviewRequisition(requisition.id, "REJECTED");
-          }}
-        />
+        <div>
+          {isRevision && (
+            <p className="text-xs text-text-muted mb-2">
+              This requisition was already reviewed — as an Admin, you can change that decision below.
+            </p>
+          )}
+          <RequisitionReviewButtons
+            onApprove={async () => {
+              "use server";
+              await reviewRequisition(requisition.id, "APPROVED");
+            }}
+            onReject={async () => {
+              "use server";
+              await reviewRequisition(requisition.id, "REJECTED");
+            }}
+            onComplete={
+              isAdmin
+                ? async () => {
+                    "use server";
+                    await reviewRequisition(requisition.id, "COMPLETED");
+                  }
+                : undefined
+            }
+          />
+        </div>
       )}
     </div>
   );

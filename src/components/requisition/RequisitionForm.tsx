@@ -23,6 +23,7 @@ interface RequisitionInitial {
   objective?: string;
   fees?: number;
   hrdcClaimable?: boolean;
+  underAtp?: boolean;
   trainingProvider?: string;
   remarks?: string;
 }
@@ -253,6 +254,22 @@ export function RequisitionForm({
             <option value="no">No</option>
           </select>
         </div>
+      </div>
+
+      <div>
+        <RequiredLabel>Under ATP (Annual Training Plan)?</RequiredLabel>
+        <select
+          name="underAtp"
+          defaultValue={initial?.underAtp ? "yes" : initial?.underAtp === false ? "no" : ""}
+          required
+          className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          <option value="" disabled>
+            Select
+          </option>
+          <option value="yes">Yes — under ATP</option>
+          <option value="no">No — not under ATP</option>
+        </select>
       </div>
 
       <div>

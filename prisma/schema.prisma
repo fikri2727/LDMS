@@ -648,6 +648,7 @@ model TnaTrainingOption {
 enum RequisitionStatus {
   PENDING
   APPROVED
+  COMPLETED
   REJECTED
 }
 
@@ -667,6 +668,8 @@ model TrainingRequisition {
   objective        String
   fees             Float
   hrdcClaimable    Boolean @default(false)
+  /// Whether this training is under the department's Annual Training Plan (ATP), vs an ad-hoc request.
+  underAtp         Boolean @default(false)
   remarks          String?
   trainingProvider String
 

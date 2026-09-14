@@ -101,6 +101,12 @@ export function RequisitionDetailDrawer({
                 )}
               </span>
             </div>
+            <div className="flex items-center justify-between">
+              <span className="text-text-muted">Under ATP</span>
+              <span className={`font-medium ${r.underAtp ? "text-purple" : "text-text-muted"}`}>
+                {r.underAtp ? "Yes" : "No"}
+              </span>
+            </div>
             {r.grantId && (
               <div className="flex items-center justify-between">
                 <span className="text-text-muted">Grant ID</span>
@@ -132,7 +138,8 @@ export function RequisitionDetailDrawer({
 
           {r.reviewedByName && (
             <p className="text-xs text-text-muted">
-              {r.status === "APPROVED" ? "Approved" : "Rejected"} by {r.reviewedByName}
+              {r.status === "REJECTED" ? "Rejected" : r.status === "COMPLETED" ? "Marked Completed" : "Approved"} by{" "}
+              {r.reviewedByName}
               {r.reviewedAt ? ` · ${format(new Date(r.reviewedAt), "d MMM yyyy")}` : ""}
             </p>
           )}

@@ -1,4 +1,4 @@
-export type RequisitionStatusKey = "PENDING" | "APPROVED" | "REJECTED";
+export type RequisitionStatusKey = "PENDING" | "APPROVED" | "COMPLETED" | "REJECTED";
 
 export interface RequisitionTheme {
   key: RequisitionStatusKey;
@@ -28,6 +28,15 @@ const THEMES: Record<RequisitionStatusKey, RequisitionTheme> = {
     accentSoftHex: "#46BEA2",
     badgeClass: "bg-primary/10 text-primary-dark",
     dotClass: "bg-primary-dark",
+  },
+  COMPLETED: {
+    key: "COMPLETED",
+    label: "Completed",
+    gradient: "from-text-primary via-blue-600 to-blue-400",
+    accentHex: "#2563EB",
+    accentSoftHex: "#93C5FD",
+    badgeClass: "bg-blue-50 text-blue-600",
+    dotClass: "bg-blue-500",
   },
   REJECTED: {
     key: "REJECTED",

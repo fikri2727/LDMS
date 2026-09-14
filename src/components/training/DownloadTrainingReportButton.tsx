@@ -20,6 +20,9 @@ export interface PublicParticipantRow {
   program: string;
   startDate: string;
   endDate: string;
+  startTime: string;
+  endTime: string;
+  totalDays: number;
   platform: string;
   function: string;
   cost: number;
@@ -45,7 +48,9 @@ export interface PublicParticipantRow {
 }
 
 export interface OjtReportRow {
-  id: number;
+  /** The training's serial number — only set on the first participant row of each
+   * OJT session, left null on the rest so it doesn't repeat down the column. */
+  ojtGroupNo: number | null;
   trainingCode: string;
   title: string;
   trainerType: string;
@@ -64,6 +69,7 @@ export interface OjtReportRow {
   avgSkillBefore: number | null;
   avgSkillAfter: number | null;
   avgSkillImprovement: number | null;
+  participantName: string;
 }
 
 const PARTICIPANT_COLUMNS: { header: string; width: number }[] = [
@@ -73,6 +79,9 @@ const PARTICIPANT_COLUMNS: { header: string; width: number }[] = [
   { header: "Program", width: 20 },
   { header: "Start Date", width: 12 },
   { header: "End Date", width: 12 },
+  { header: "Start Time", width: 10 },
+  { header: "End Time", width: 10 },
+  { header: "Days", width: 8 },
   { header: "Platform", width: 14 },
   { header: "Function", width: 16 },
   { header: "Cost (RM)", width: 12 },
@@ -109,7 +118,7 @@ const OJT_COLUMNS: { header: string; width: number }[] = [
   { header: "End Time", width: 10 },
   { header: "Days", width: 8 },
   { header: "Hours/Day", width: 10 },
-  { header: "Participants", width: 12 },
+  { header: "Participant Names", width: 28 },
   { header: "Completed", width: 12 },
   { header: "Pending", width: 10 },
   { header: "Absent", width: 10 },
@@ -147,6 +156,9 @@ export function DownloadTrainingReportButton({
           PROGRAM_LABELS[r.program] ?? r.program,
           format(new Date(r.startDate), "dd/MM/yyyy"),
           format(new Date(r.endDate), "dd/MM/yyyy"),
+          r.startTime,
+          r.endTime,
+          r.totalDays,
           PLATFORM_LABELS[r.platform] ?? r.platform,
           FUNCTION_LABELS[r.function] ?? r.function,
           r.cost,
@@ -176,10 +188,10 @@ export function DownloadTrainingReportButton({
       ojtSheet.columns = OJT_COLUMNS.map((c) => ({ header: c.header, width: c.width }));
       ojtSheet.getRow(1).font = { bold: true };
 
-      ojtRows.forEach((r, i) => {
+      ojtRows.forEach((r) => {
         const perAttendance = r.par > 0 ? Math.round((r.comp / r.par) * 100) : 0;
         ojtSheet.addRow([
-          i + 1,
+          r.ojtGroupNo ?? "",
           r.trainingCode,
           r.title,
           TRAINER_TYPE_LABELS[r.trainerType] ?? r.trainerType,
@@ -190,7 +202,7 @@ export function DownloadTrainingReportButton({
           r.endTime,
           r.totalDay,
           r.totalHour,
-          r.par,
+          r.participantName,
           r.comp,
           r.pend,
           r.abs,

@@ -185,6 +185,7 @@ export function OjtForm({
 
       {isNew && !canKeyInForOthers && (
         <div className="border-t border-border pt-5">
+          <input type="hidden" name="isSelf" value="1" />
           <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
             My Learning Survey
           </h3>

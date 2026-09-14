@@ -54,15 +54,18 @@ function trainingManHours(t: {
   return trainingSessionHours(t) * completed;
 }
 
-/** Matches the admin OJT Records table's Man Hour figure: session length × total
- * participant headcount (all participants, not just completed — mirrors that table). */
-function ojtManHours(o: { totalDay: number; totalHour: number; participants: unknown[] }) {
-  return o.totalDay * o.totalHour * o.participants.length;
+/** Matches the admin OJT Records table's Man Hour figure: session length × how
+ * many participants actually completed it — not just the session's own
+ * duration, which would undercount a session with many attendees. */
+function ojtManHours(o: { totalDay: number; totalHour: number; participants: { attendance: string }[] }) {
+  const completed = o.participants.filter((p) => p.attendance === "COMPLETED").length;
+  return o.totalDay * o.totalHour * completed;
 }
 
-/** E-Learning has no OJT counterpart in the legacy data model, so its completed hours
- * are folded into the "OJT" bucket everywhere the dashboard reports OJT hours. */
-async function loadElearningHours(range: DateRange, userId?: number) {
+/** Completed E-Learning modules count toward the dashboard totals too: each
+ * completion is one "training" on one "day" (matching the My Training table,
+ * where an e-learning row is a single-day event), plus its estimated hours. */
+async function loadElearningTotals(range: DateRange, userId?: number) {
   const completions = await prisma.elearningCompletion.findMany({
     where: {
       completedAt: { gte: range.start, lte: range.end },
@@ -72,16 +75,16 @@ async function loadElearningHours(range: DateRange, userId?: number) {
   });
 
   const hoursByModule = new Map<number, number>();
-  let total = 0;
+  let hours = 0;
   for (const c of completions) {
-    let hours = hoursByModule.get(c.moduleId);
-    if (hours === undefined) {
-      hours = await getModuleEstimatedHours(c.moduleId);
-      hoursByModule.set(c.moduleId, hours);
+    let h = hoursByModule.get(c.moduleId);
+    if (h === undefined) {
+      h = await getModuleEstimatedHours(c.moduleId);
+      hoursByModule.set(c.moduleId, h);
     }
-    total += hours;
+    hours += h;
   }
-  return total;
+  return { hours, count: completions.length };
 }
 
 export async function getOverview(range: DateRange, userId?: number) {
@@ -92,7 +95,9 @@ export async function getOverview(range: DateRange, userId?: number) {
     : allTrainings;
   const ojts = userId ? allOjts.filter((o) => o.participants.some((p) => p.userId === userId)) : allOjts;
 
-  const totalTraining = trainings.length + ojts.length;
+  const elearning = await loadElearningTotals(range, userId);
+
+  const totalTraining = trainings.length + ojts.length + elearning.count;
 
   const completedUsers = new Set<number>();
   for (const t of trainings) {
@@ -118,7 +123,8 @@ export async function getOverview(range: DateRange, userId?: number) {
     totalDay += o.totalDay;
     totalHour += userId ? o.totalHour : ojtManHours(o);
   }
-  totalHour += await loadElearningHours(range, userId);
+  totalDay += elearning.count;
+  totalHour += elearning.hours;
 
   return {
     totalTraining,
@@ -141,12 +147,12 @@ export async function getPublicVsOjtSplit(range: DateRange, userId?: number) {
     0
   );
   const ojtTotalHours = ojts.reduce((sum, o) => sum + (userId ? o.totalDay * o.totalHour : ojtManHours(o)), 0);
-  const elearningHours = await loadElearningHours(range, userId);
+  const elearning = await loadElearningTotals(range, userId);
 
   return [
     { name: "Public / Inhouse", value: Math.round(publicManHours * 100) / 100 },
     { name: "OJT", value: Math.round(ojtTotalHours * 100) / 100 },
-    { name: "E-Learning", value: Math.round(elearningHours * 100) / 100 },
+    { name: "E-Learning", value: Math.round(elearning.hours * 100) / 100 },
   ];
 }
 

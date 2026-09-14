@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { RequisitionStats } from "@/components/requisition/catalogue/RequisitionStats";
 import { RequisitionBoard } from "@/components/requisition/catalogue/RequisitionBoard";
 import type { RequisitionCardData } from "@/components/requisition/catalogue/types";
+import { deriveRequisitionDisplayStatus } from "@/lib/requisition-status";
 
 function toCardData(
   r: {
@@ -22,6 +23,7 @@ function toCardData(
     remarks: string | null;
     fees: number;
     hrdcClaimable: boolean;
+    underAtp: boolean;
     grantId: string | null;
     brochureFileName: string | null;
     createdAt: Date;
@@ -38,7 +40,7 @@ function toCardData(
   return {
     id: r.id,
     title: r.title,
-    status: r.status as RequisitionCardData["status"],
+    status: deriveRequisitionDisplayStatus(r.status, r.trainingDate, r.trainingEndDate),
     trainingDate: r.trainingDate.toISOString(),
     trainingEndDate: r.trainingEndDate ? r.trainingEndDate.toISOString() : null,
     startTime: r.startTime,
@@ -49,6 +51,7 @@ function toCardData(
     remarks: r.remarks,
     fees: r.fees,
     hrdcClaimable: r.hrdcClaimable,
+    underAtp: r.underAtp,
     grantId: r.grantId,
     brochureFileName: r.brochureFileName,
     createdAt: r.createdAt.toISOString(),
@@ -93,12 +96,6 @@ export default async function RequisitionIndexPage() {
   ]);
 
   const myCards = myApplications.map((r) => toCardData(r));
-  const stats = {
-    total: myCards.length,
-    pending: myCards.filter((r) => r.status === "PENDING").length,
-    approved: myCards.filter((r) => r.status === "APPROVED").length,
-    rejected: myCards.filter((r) => r.status === "REJECTED").length,
-  };
 
   const pendingCards = pendingForReview.map((r) =>
     toCardData(r, {
@@ -117,6 +114,20 @@ export default async function RequisitionIndexPage() {
     })
   );
 
+  // Admins see the org-wide "All Applications" board below, so the stat tiles
+  // summarize that same dataset — not just their own submissions, which would
+  // show 0 for an admin who's never personally applied even though the board
+  // right underneath lists dozens of requisitions. Everyone else only ever
+  // sees their own "My Applications" board, so the tiles summarize that.
+  const statsSource = viewAll ? allCards : myCards;
+  const stats = {
+    total: statsSource.length,
+    pending: statsSource.filter((r) => r.status === "PENDING").length,
+    approved: statsSource.filter((r) => r.status === "APPROVED").length,
+    completed: statsSource.filter((r) => r.status === "COMPLETED").length,
+    rejected: statsSource.filter((r) => r.status === "REJECTED").length,
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -133,6 +144,7 @@ export default async function RequisitionIndexPage() {
       </div>
 
       <div className="mb-8">
+        <p className="text-xs text-text-muted mb-2">{viewAll ? "Organization-wide totals" : "Your applications"}</p>
         <RequisitionStats {...stats} />
       </div>
 
