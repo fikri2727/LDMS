@@ -5,10 +5,11 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// max: 1 — each serverless function instance should hold at most one pooled
-// connection; PgBouncer transaction-mode pooling multiplexes many of these
-// short-lived connections across Supabase's actual Postgres backends.
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL!, max: 1 });
+// A small per-instance cap (not 1 — that serializes concurrent requests
+// within the same warm instance and risks request timeouts under load) so
+// many warm serverless instances together stay well under the PgBouncer
+// transaction-mode pooler's much higher connection ceiling.
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL!, max: 5 });
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 
