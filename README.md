@@ -1,9 +1,8 @@
-# TAMCO LDMS (Next.js + SQLite)
+# TAMCO LDMS (Next.js + PostgreSQL)
 
-A local Learning & Development Management System — Staff List, Training Records
+A Learning & Development Management System — Staff List, Training Records
 (Public/Inhouse + OJT, with the full PME evaluation workflow), and a Dashboard.
-Runs entirely on your laptop; the database is a single SQLite file
-(`dev.db`), no external hosting required.
+Uses PostgreSQL (Supabase) as its database.
 
 ## Running it
 
