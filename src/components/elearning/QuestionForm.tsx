@@ -19,7 +19,11 @@ function SubmitButton() {
 
 const OPTION_SLOTS = 4;
 
-export function QuestionForm({ action }: { action: (formData: FormData) => Promise<void> }) {
+export function QuestionForm({
+  action,
+}: {
+  action: (formData: FormData) => Promise<{ error: string } | undefined>;
+}) {
   const [type, setType] = useState<"SINGLE_CHOICE" | "TRUE_FALSE" | "MULTIPLE_ANSWER">("SINGLE_CHOICE");
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -30,7 +34,8 @@ export function QuestionForm({ action }: { action: (formData: FormData) => Promi
         startTransition(async () => {
           setError(null);
           try {
-            await action(fd);
+            const result = await action(fd);
+            if (result?.error) setError(result.error);
           } catch (e) {
             setError(e instanceof Error ? e.message : "Something went wrong.");
           }

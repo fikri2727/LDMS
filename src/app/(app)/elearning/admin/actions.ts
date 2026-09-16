@@ -354,12 +354,16 @@ export async function reorderLesson(id: number, moduleId: number, direction: "up
 
 // ---------- Quiz questions ----------
 
-export async function addQuestion(lessonId: number, moduleId: number, formData: FormData) {
+export async function addQuestion(
+  lessonId: number,
+  moduleId: number,
+  formData: FormData,
+): Promise<{ error: string } | undefined> {
   await requireElearningAdmin();
 
   const type = String(formData.get("type") ?? "SINGLE_CHOICE") as QuestionType;
   const question = String(formData.get("question") ?? "").trim();
-  if (!question) throw new Error("Question text is required.");
+  if (!question) return { error: "Question text is required." };
 
   const marks = Number(formData.get("marks")) || 1;
   const explanation = String(formData.get("explanation") ?? "").trim() || null;
@@ -384,8 +388,8 @@ export async function addQuestion(lessonId: number, moduleId: number, formData: 
       .map((text, i) => ({ text, isCorrect: correctIndexes.has(i), order: i }))
       .filter((o) => o.text.length > 0);
 
-    if (options.length < 2) throw new Error("Provide at least two answer options.");
-    if (!options.some((o) => o.isCorrect)) throw new Error("Mark at least one option as correct.");
+    if (options.length < 2) return { error: "Provide at least two answer options." };
+    if (!options.some((o) => o.isCorrect)) return { error: "Mark at least one option as correct." };
   }
 
   await prisma.elearningQuestion.create({
