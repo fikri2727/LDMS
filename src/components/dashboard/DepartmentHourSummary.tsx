@@ -22,6 +22,10 @@ export function DepartmentHourSummary({
           <span className="font-medium text-text-primary">{totalNeeded} Hours</span>
         </div>
         <div className="flex items-center justify-between">
+          <span className="text-text-muted">Balance Hours Needed by Department</span>
+          <span className="font-medium text-text-primary">{Math.max(0, totalNeeded - currentHours)} Hours</span>
+        </div>
+        <div className="flex items-center justify-between">
           <span className="text-text-muted">Current Total Hours</span>
           <span className="font-medium text-text-primary">{currentHours} hours</span>
         </div>
