@@ -1,35 +1,37 @@
-import { mkdir, writeFile, unlink } from "fs/promises";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-import { isOfficeSlideFile, convertToPdf } from "@/lib/office-convert";
+import path from "path";
 
-const UPLOADS_ROOT = path.join(process.cwd(), "uploads");
+const BUCKET = "uploads";
 
-/** Saves an uploaded File under uploads/<subdir>/ with a random-prefixed name, returns the relative path. */
+const supabaseAdmin = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  auth: { persistSession: false },
+});
+
+/** Saves an uploaded File under <subdir>/ in Supabase Storage with a random-prefixed name, returns the relative path. */
 export async function saveUpload(subdir: string, file: File): Promise<string> {
-  const dir = path.join(UPLOADS_ROOT, subdir);
-  await mkdir(dir, { recursive: true });
-
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const fileName = `${Date.now()}-${crypto.randomBytes(4).toString("hex")}-${safeName}`;
-  const fullPath = path.join(dir, fileName);
+  const relativePath = path.posix.join(subdir, fileName);
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(fullPath, buffer);
+  const { error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .upload(relativePath, buffer, { contentType: file.type || guessMimeType(file.name) });
+  if (error) throw new Error(`Failed to upload file: ${error.message}`);
 
-  return path.join(subdir, fileName);
+  return relativePath;
 }
 
 export async function deleteUpload(relativePath: string) {
-  try {
-    await unlink(path.join(UPLOADS_ROOT, relativePath));
-  } catch {
-    // File already gone — nothing to do.
-  }
+  await supabaseAdmin.storage.from(BUCKET).remove([relativePath]);
 }
 
-export function uploadFullPath(relativePath: string) {
-  return path.join(UPLOADS_ROOT, relativePath);
+/** Reads back a previously-saved upload's bytes. */
+export async function readUpload(relativePath: string): Promise<Uint8Array> {
+  const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(relativePath);
+  if (error || !data) throw new Error(`Failed to read file: ${error?.message ?? "not found"}`);
+  return new Uint8Array(await data.arrayBuffer());
 }
 
 const EXTENSION_MIME_TYPES: Record<string, string> = {
@@ -54,31 +56,10 @@ export function guessMimeType(fileName: string) {
   return EXTENSION_MIME_TYPES[ext] ?? "application/octet-stream";
 }
 
-/**
- * Saves an uploaded slide attachment. PowerPoint files are converted to PDF so learners
- * get an inline preview the same way a directly-uploaded PDF does — browsers can't render
- * .ppt/.pptx natively. Falls back to storing the original PowerPoint file (served as a
- * download) if the conversion isn't available or fails.
- */
+/** Saves an uploaded slide attachment (image, PDF, or PowerPoint file, stored as-is). */
 export async function saveSlideFile(
   file: File
 ): Promise<{ slideFileName: string; slideFilePath: string; slideFileType: string }> {
   const filePath = await saveUpload("elearning-slides", file);
-
-  if (isOfficeSlideFile(file.name)) {
-    try {
-      const pdfFullPath = await convertToPdf(uploadFullPath(filePath));
-      await deleteUpload(filePath);
-      const pdfRelativePath = path.relative(UPLOADS_ROOT, pdfFullPath);
-      return {
-        slideFileName: `${path.parse(file.name).name}.pdf`,
-        slideFilePath: pdfRelativePath,
-        slideFileType: "application/pdf",
-      };
-    } catch {
-      // LibreOffice unavailable or conversion failed — keep the original PowerPoint file.
-    }
-  }
-
   return { slideFileName: file.name, slideFilePath: filePath, slideFileType: file.type || guessMimeType(file.name) };
 }

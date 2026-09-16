@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile } from "fs/promises";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { canManageElearning } from "@/lib/rbac";
-import { uploadFullPath, guessMimeType } from "@/lib/uploads";
+import { readUpload, guessMimeType } from "@/lib/uploads";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -36,8 +35,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const mimeType = kind === "video" ? guessMimeType(fileName) : (lesson.slideFileType ?? guessMimeType(fileName));
 
-  const buffer = await readFile(uploadFullPath(filePath));
-  return new NextResponse(buffer, {
+  const buffer = await readUpload(filePath);
+  return new NextResponse(buffer as BodyInit, {
     headers: {
       "Content-Type": mimeType,
       "Content-Disposition": `inline; filename="${fileName}"`,
