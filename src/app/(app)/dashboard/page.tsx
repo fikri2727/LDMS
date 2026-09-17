@@ -74,7 +74,7 @@ export default async function DashboardPage({
         <span className="absolute bottom-10 left-1/4 h-1 w-1 rounded-full bg-primary/30 animate-drift [animation-delay:6s]" />
       </div>
 
-      <div className="flex items-center justify-between mb-2 gap-4 flex-wrap">
+      <div className="flex items-center justify-between mb-3 gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-semibold text-text-primary flex items-center gap-2">
             Welcome back, {session.staffName.split(" ")[0]} <span aria-hidden>👋</span>
@@ -86,11 +86,11 @@ export default async function DashboardPage({
         <DateRangeFilter start={range.start.toISOString().slice(0, 10)} end={range.end.toISOString().slice(0, 10)} />
       </div>
 
-      <div className="mb-2">
+      <div className="mb-3">
         <OverviewTiles overview={overview} showStaffTrained={orgWide} balanceHours={balanceHours} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
         <DashboardCard title="Public / Inhouse vs OJT vs E-Learning" icon={PieChartIcon} accent="#46BEA2">
           <PublicOjtPie data={split} />
         </DashboardCard>
@@ -113,8 +113,8 @@ export default async function DashboardPage({
           accent="#46BEA2"
           className="lg:col-span-2"
         >
-          <div className={orgWide ? "h-full flex flex-col" : "h-full flex flex-col overflow-y-auto"}>
-            <div className={orgWide ? "flex-1 min-h-0" : "h-44 shrink-0"}>
+          <div className="h-full flex flex-col">
+            <div className="flex-1 min-h-0">
               {orgWide ? (
                 <DepartmentBarChart data={departmentData!} metric="avgHour" target={hourTarget} />
               ) : (
