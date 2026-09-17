@@ -113,8 +113,8 @@ export default async function DashboardPage({
           accent="#46BEA2"
           className="lg:col-span-2"
         >
-          <div className="h-full flex flex-col">
-            <div className="flex-1 min-h-0">
+          <div className={orgWide ? "h-full flex flex-col" : "h-full flex flex-col overflow-y-auto"}>
+            <div className={orgWide ? "flex-1 min-h-0" : "h-56 shrink-0"}>
               {orgWide ? (
                 <DepartmentBarChart data={departmentData!} metric="avgHour" target={hourTarget} />
               ) : (
