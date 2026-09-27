@@ -91,7 +91,7 @@ export function CertificateView({
         <p className="text-sm text-text-secondary mb-2">for successfully completing</p>
         <p className="text-xl font-medium text-tamco-navy mb-8">{moduleTitle}</p>
 
-        <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto text-sm mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-lg mx-auto text-sm mb-10">
           <div>
             <p className="text-text-muted">Completion Date</p>
             <p className="text-text-primary font-medium">{issuedAt}</p>

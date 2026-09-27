@@ -56,7 +56,7 @@ export default async function DashboardPage({
   const balanceHours = orgWide ? null : Math.round((hourTarget - overview.totalHour) * 100) / 100;
 
   return (
-    <div className="relative h-full flex flex-col">
+    <div className="relative">
       {/* subtle futuristic backdrop */}
       <div className="pointer-events-none absolute -inset-x-4 -inset-y-6 -z-10 overflow-hidden rounded-[2rem]">
         <div
@@ -106,15 +106,15 @@ export default async function DashboardPage({
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
         <DashboardCard
           title={orgWide ? "Department Avg. Training Hours / Staff" : "My Monthly Hours"}
           icon={BarChart3}
           accent="#46BEA2"
           className="lg:col-span-2"
         >
-          <div className="h-full flex flex-col">
-            <div className="flex-1 min-h-0">
+          <div className="flex flex-col">
+            <div className="h-64 shrink-0">
               {orgWide ? (
                 <DepartmentBarChart data={departmentData!} metric="avgHour" target={hourTarget} />
               ) : (

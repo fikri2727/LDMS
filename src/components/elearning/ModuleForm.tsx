@@ -61,7 +61,7 @@ function CertificatePresetPicker({
             <X size={16} />
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {CERTIFICATE_PRESETS.map((preset) => (
             <button
               key={preset.id}

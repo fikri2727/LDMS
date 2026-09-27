@@ -167,7 +167,7 @@ export default async function OjtDetailPage({ params }: { params: Promise<{ id: 
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-8 text-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 text-sm">
         <div>
           <p className="text-text-muted">Trainer Type</p>
           <p className="text-text-primary">{TRAINER_TYPE_LABELS[ojt.trainerType]}</p>

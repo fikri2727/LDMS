@@ -67,7 +67,7 @@ export function TrainingForm({
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">Program</label>
           <select
@@ -145,7 +145,7 @@ export function TrainingForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">Start Date</label>
           <input

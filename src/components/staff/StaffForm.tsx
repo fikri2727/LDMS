@@ -189,7 +189,7 @@ export function StaffForm({
         <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-2">
           Organization
         </h3>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Division</label>
             <SearchableSelect

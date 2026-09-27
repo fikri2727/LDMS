@@ -65,7 +65,7 @@ export default async function ModulePlayerLayout({
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="bg-surface rounded-2xl border border-border p-3 h-fit">
           <ol className="space-y-1">
             {module_.lessons.map((l, i) => {
@@ -97,7 +97,7 @@ export default async function ModulePlayerLayout({
           </ol>
         </div>
 
-        <div className="col-span-3">{children}</div>
+        <div className="lg:col-span-3">{children}</div>
       </div>
     </div>
   );

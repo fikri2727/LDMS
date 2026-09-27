@@ -72,8 +72,8 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6 mb-8">
-        <div className="col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="lg:col-span-2 space-y-6">
           {module_.description && (
             <div className="bg-surface rounded-2xl border border-border p-5 shadow-[var(--shadow-card)]">
               <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-2">Description</h3>

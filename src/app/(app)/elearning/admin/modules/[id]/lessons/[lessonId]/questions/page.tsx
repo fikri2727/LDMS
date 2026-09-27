@@ -40,8 +40,8 @@ export default async function QuizQuestionsPage({
         {lesson.module.title} · Pass {lesson.passPercent}% · {lesson.maxAttempts} attempt(s)
       </p>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
           <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
             Questions ({lesson.questions.length})
           </h3>
