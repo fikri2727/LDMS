@@ -62,6 +62,39 @@ body {
   color: var(--foreground);
 }
 
+/* ---- Automatic compact scale on laptop screens ----
+   Laptops usually run Windows display scaling at 125-150%, which leaves the browser only
+   ~1260x600 px and makes every page oversized (users were zooming the browser to 67%).
+   On mouse-driven screens (not phones/tablets) the whole app is scaled evenly - exactly
+   like browser zoom - so icons and charts shrink together with the text:
+     >= 1536px wide           100%
+     1280-1535px wide          85%
+     < 1280px wide or < 700px tall   75%                                              */
+:root {
+  --app-zoom: 1;
+}
+@media (pointer: fine) and (min-width: 1024px) and (max-width: 1535.98px) {
+  :root {
+    --app-zoom: 0.85;
+  }
+}
+@media (pointer: fine) and (min-width: 1024px) and (max-width: 1279.98px),
+  (pointer: fine) and (min-width: 1024px) and (max-height: 700px) {
+  :root {
+    --app-zoom: 0.75;
+  }
+}
+html {
+  zoom: var(--app-zoom);
+}
+/* Full-height layouts must still fill the real screen after zooming. */
+.h-screen {
+  height: calc(100dvh / var(--app-zoom));
+}
+.min-h-screen {
+  min-height: calc(100dvh / var(--app-zoom));
+}
+
 /* iPhone/iPad Safari zooms the whole page in when you tap a text field whose text is
    smaller than 16px - and it stays zoomed after login. On touch devices, form fields
    use 16px text so that never happens. (Unlayered, so it wins over Tailwind's text-sm.) */
