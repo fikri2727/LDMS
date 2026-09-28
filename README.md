@@ -1,62 +1,60 @@
-# TAMCO LDMS (Next.js + PostgreSQL)
+# TAMCO LDMS — Python backend + Next.js frontend
 
-A Learning & Development Management System — Staff List, Training Records
-(Public/Inhouse + OJT, with the full PME evaluation workflow), and a Dashboard.
-Uses PostgreSQL (Supabase) as its database.
+The Learning & Development Management System, split into:
 
-## Running it
+| Folder | What | Tech |
+|---|---|---|
+| `backend/` | All business logic and database access (REST API) | Python 3.12, FastAPI, SQLAlchemy |
+| `frontend/` | The web UI (same screens as before) | Next.js + React + Tailwind |
+
+It uses the **same Supabase PostgreSQL database and storage bucket** as the original Node.js app
+(`ldms-web`, backed up to `Downloads\ldms-web-backup.zip`), so existing staff, passwords,
+trainings and files carry over unchanged.
+
+```
+Browser ──> frontend (Next.js, :3002) ──> backend (FastAPI, :8000) ──> Supabase Postgres + Storage
+             pages + forms, no DB access     permissions, rules, SQL
+```
+
+## Run it
+
+**Easiest:** double-click **`start.cmd`**. It starts the backend and the website in two windows and
+opens http://localhost:3002 when ready. Double-click **`stop.cmd`** (or close both windows) to stop.
+
+Or start them by hand, in two terminals.
+
+Terminal 1 — backend:
 
 ```bash
-npm install
+cd backend
+.venv\Scripts\activate
+uvicorn app.main:app --reload --port 8000
+```
+
+Terminal 2 — frontend:
+
+```bash
+cd frontend
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open http://localhost:3002. API docs: http://localhost:8000/docs.
 
-First run only — create the database and a bootstrap admin account:
+First-time setup for each part is in `backend/README.md` and `frontend/README.md`.
+
+## Tests
 
 ```bash
-npx prisma migrate dev
-npm run db:seed
+cd backend
+.venv\Scripts\python -m pytest -q
 ```
 
-Default admin login: **staff no. `ADMIN01`**, **password `Welcome@1`**.
-Sign in and create your real staff records; new staff get the default
-password `P@ss1234` (shown on the Add Staff form) and should change it.
+The tests run against the real database but inside a transaction that is always rolled back —
+nothing is saved. File uploads are faked, so Supabase Storage isn't touched either.
 
-## Stack
+## Production notes
 
-- Next.js (App Router) + TypeScript + Tailwind CSS
-- Prisma ORM + SQLite (via the `better-sqlite3` driver adapter)
-- `iron-session` for stateless, encrypted-cookie sessions (no session table)
-- Recharts for the dashboard
-
-## Data model
-
-`prisma/schema.prisma` is the source of truth. It mirrors the original PHP
-LDMS's tables (`user`, `training`, `ojt`, `participation`, `participateojt`,
-`pme`, `divisions`/`departments`/`sections`) with the same field meanings,
-adapted into a normalized, typed schema. Notable deliberate differences from
-the legacy app, documented here rather than silently:
-
-- **Passwords are bcrypt-hashed**, not unsalted MD5.
-- **All queries are parameterized** via Prisma (the legacy app built SQL by
-  string concatenation).
-- **Role-based access is consolidated** into one set of pages with
-  permission-gated actions (`src/lib/rbac.ts`), instead of near-duplicate
-  page trees per role (`admin/`, `clerk/`, `staff/hod/`, `staff/office/`).
-  Roles: `ADMIN`, `CLERK`, `STAFF` (+ an `isHod` flag), mapped from the
-  original `roletype`/`usertype`.
-- **Certificates are scoped to the training** they belong to (the legacy
-  certificate upload was scoped to the uploading admin instead, a bug).
-- The `hadc` (HRDC) column typo is fixed to `hrdcClaimable`.
-- "Departmental/Inhouse" training in the legacy app was a read-only report
-  over `training` + `ojt`, not its own record type — Inhouse sessions are
-  created via the same Public/Inhouse flow here (`program` field distinguishes
-  External/Inhouse-external-trainer/Inhouse-internal-trainer).
-
-## Uploads
-
-Certificate files are written to `uploads/` at the project root (not `public/`,
-so they aren't served directly) and streamed back through
-`/api/certificates/[id]`. This folder and `dev.db` are gitignored.
+- Only the frontend needs to be public. Keep the backend on a private network (or the same host),
+  and set the frontend's `API_URL` to it.
+- Set `COOKIE_SECURE=true` in `backend/.env` when serving over HTTPS.
+- Everyone signs in once after switching from the old app (the login cookie format changed).

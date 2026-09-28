@@ -1,0 +1,225 @@
+import Link from "next/link";
+import { requireSession } from "@/lib/guard";
+import { canManageTraining } from "@/lib/rbac";
+import { api } from "@/lib/api";
+import { PROGRAM_LABELS } from "@/lib/labels";
+import { computeDays, computeHours } from "@/lib/training-code";
+import { Plus } from "lucide-react";
+import { format } from "date-fns";
+import { TrainingRecordsTable, type TrainingRow } from "@/components/training/TrainingRecordsTable";
+import {
+  DownloadTrainingReportButton,
+  type OjtReportRow,
+  type PublicParticipantRow,
+} from "@/components/training/DownloadTrainingReportButton";
+import type { Department, Ojt, ParticipateOjt, Participation, Pme, Training, User } from "@/lib/db-types";
+
+type TrainingRow_ = Training & {
+  participations: (Participation & { pme: Pme | null; user: User & { department: Department | null } })[];
+};
+type OjtRow_ = Ojt & { participants: (ParticipateOjt & { user: User })[] };
+
+function average(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return Math.round((values.reduce((sum, v) => sum + v, 0) / values.length) * 100) / 100;
+}
+
+export default async function PublicTrainingListPage() {
+  const session = await requireSession();
+  const manage = canManageTraining(session);
+
+  // Admin: every training with participants (+PME) and every OJT; staff: only their own trainings.
+  const { trainings, ojts } = await api.get<{ trainings: TrainingRow_[]; ojts: OjtRow_[] }>("/api/training/public");
+
+  if (manage) {
+    const rows: TrainingRow[] = trainings.map((t) => {
+      const totalDays = computeDays(t.startDate, t.endDate);
+      const totalHours = computeHours(t.startTime, t.endTime);
+      const par = t.participations.length;
+      const comp = t.participations.filter((p) => p.attendance === "COMPLETED").length;
+      const pend = t.participations.filter((p) => p.attendance === "PENDING").length;
+      const abs = t.participations.filter((p) => p.attendance === "ABSENT").length;
+      const pmeRecords = t.participations.map((p) => p.pme).filter((pme) => pme != null);
+      const pmeComp = pmeRecords.filter((pme) => pme.status === "VERIFIED").length;
+      const pmePend = pmeRecords.length - pmeComp;
+
+      return {
+        id: t.id,
+        trainingCode: t.trainingCode,
+        title: t.title,
+        program: t.program,
+        startDate: t.startDate.toISOString(),
+        endDate: t.endDate.toISOString(),
+        startTime: t.startTime,
+        endTime: t.endTime,
+        hrdcClaimable: t.hrdcClaimable,
+        platform: t.platform,
+        function: t.function,
+        cost: t.cost,
+        totalDays,
+        totalHours,
+        totalManHours: Math.round(totalDays * totalHours * comp * 100) / 100,
+        par,
+        comp,
+        pend,
+        abs,
+        pmeComp,
+        pmePend,
+        participants: t.participations.map((p) => ({
+          staffNo: p.user.staffNo,
+          staffName: p.user.staffName,
+          department: p.user.department?.name ?? "—",
+          attendance: p.attendance,
+          pmeStatus: p.pme?.status ?? null,
+        })),
+      };
+    });
+
+    const participantRows: PublicParticipantRow[] = trainings.flatMap((t) =>
+      t.participations.map((p) => ({
+        trainingCode: t.trainingCode,
+        trainingTitle: t.title,
+        program: t.program,
+        startDate: t.startDate.toISOString(),
+        endDate: t.endDate.toISOString(),
+        startTime: t.startTime,
+        endTime: t.endTime,
+        totalDays: computeDays(t.startDate, t.endDate),
+        platform: t.platform,
+        function: t.function,
+        cost: t.cost,
+        staffNo: p.user.staffNo,
+        staffName: p.user.staffName,
+        department: p.user.department?.name ?? "—",
+        designation: p.user.designation,
+        attendance: p.attendance,
+        courseRelevance: p.courseRelevance,
+        practicalExercises: p.practicalExercises,
+        sufficientTime: p.sufficientTime,
+        trainerEffectiveness: p.trainerEffectiveness,
+        courseEffectiveness: p.courseEffectiveness,
+        whatLearnt: p.whatLearnt,
+        actionPlan: p.actionPlan,
+        commentSuggestions: p.commentSuggestions,
+        pmeStatus: p.pme?.status ?? null,
+        pmeLevelRating: p.pme?.levelRating ?? null,
+        pmeBehavioralRating: p.pme?.behavioralRating ?? null,
+        pmeResultRating: p.pme?.resultRating ?? null,
+        pmeTotalMark: p.pme?.totalMark ?? null,
+        pmeAverageMark: p.pme?.averageMark ?? null,
+      }))
+    );
+
+    // One row per participant (not per OJT session) — the training's own columns
+    // (code, title, trainer, dates...) repeat down every row in that group, and
+    // the serial number only appears once, on the first row of each group.
+    const ojtRows: OjtReportRow[] = ojts.flatMap((o, ojtIndex) => {
+      const par = o.participants.length;
+      const comp = o.participants.filter((p) => p.attendance === "COMPLETED").length;
+      const pend = o.participants.filter((p) => p.attendance === "PENDING").length;
+      const abs = o.participants.filter((p) => p.attendance === "ABSENT").length;
+      const skillBefore = o.participants.map((p) => p.q2).filter((v): v is number => v != null);
+      const skillAfter = o.participants.map((p) => p.q3).filter((v): v is number => v != null);
+      const avgSkillBefore = average(skillBefore);
+      const avgSkillAfter = average(skillAfter);
+
+      const shared = {
+        trainingCode: o.trainingCode,
+        title: o.title,
+        trainerType: o.trainerType,
+        trainerName: o.trainerName,
+        startDate: o.startDate.toISOString(),
+        endDate: o.endDate.toISOString(),
+        startTime: o.startTime,
+        endTime: o.endTime,
+        totalDay: o.totalDay,
+        totalHour: o.totalHour,
+        // Man-hours delivered so far — only participants who actually completed
+        // the OJT count, not ones still pending check-in/evaluation.
+        totalManHour: Math.round(o.totalDay * o.totalHour * comp * 100) / 100,
+        par,
+        comp,
+        pend,
+        abs,
+        avgSkillBefore,
+        avgSkillAfter,
+        avgSkillImprovement:
+          avgSkillBefore != null && avgSkillAfter != null ? Math.round((avgSkillAfter - avgSkillBefore) * 100) / 100 : null,
+      };
+
+      if (o.participants.length === 0) {
+        return [{ ...shared, ojtGroupNo: ojtIndex + 1, participantName: "—" }];
+      }
+
+      return o.participants.map((p, pIndex) => ({
+        ...shared,
+        ojtGroupNo: pIndex === 0 ? ojtIndex + 1 : null,
+        participantName: p.user.staffName,
+      }));
+    });
+
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-text-muted text-sm">{trainings.length} training session(s)</p>
+          <div className="flex items-center gap-2">
+            <DownloadTrainingReportButton participantRows={participantRows} ojtRows={ojtRows} />
+            <Link
+              href="/training/public/new"
+              className="flex items-center gap-1.5 rounded-xl bg-primary-dark hover:bg-primary text-white text-sm font-medium px-4 py-2 transition-colors"
+            >
+              <Plus size={16} /> Add Training
+            </Link>
+          </div>
+        </div>
+        <TrainingRecordsTable rows={rows} />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-text-muted text-sm">{trainings.length} training session(s)</p>
+      </div>
+
+      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
+            <tr>
+              <th className="px-4 py-3 font-medium">Code</th>
+              <th className="px-4 py-3 font-medium">Title</th>
+              <th className="px-4 py-3 font-medium">Program</th>
+              <th className="px-4 py-3 font-medium">Dates</th>
+              <th className="px-4 py-3 font-medium">Venue</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {trainings.map((t) => (
+              <tr key={t.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-text-muted font-mono text-xs">{t.trainingCode}</td>
+                <td className="px-4 py-3">
+                  <Link href={`/training/public/${t.id}`} className="text-primary-dark font-medium hover:underline">
+                    {t.title}
+                  </Link>
+                </td>
+                <td className="px-4 py-3 text-text-secondary">{PROGRAM_LABELS[t.program]}</td>
+                <td className="px-4 py-3 text-text-secondary">
+                  {format(t.startDate, "d MMM yyyy")} – {format(t.endDate, "d MMM yyyy")}
+                </td>
+                <td className="px-4 py-3 text-text-secondary">{t.venue}</td>
+              </tr>
+            ))}
+            {trainings.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center text-text-muted">
+                  No training sessions yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
