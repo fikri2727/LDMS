@@ -116,7 +116,7 @@ export function AppShell({
         </header>
         <main className="flex-1 bg-[var(--background)] overflow-y-auto overflow-x-auto pt-14 lg:pt-0">
           {/* Extra bottom space on phones so the floating tab bar never covers content. */}
-          <div className="p-4 sm:p-5 h-full pb-[calc(env(safe-area-inset-bottom)+6.5rem)] lg:pb-5">{children}</div>
+          <div className="p-4 sm:p-5 min-h-full pb-[calc(env(safe-area-inset-bottom)+6.5rem)] lg:pb-5">{children}</div>
         </main>
       </div>
 

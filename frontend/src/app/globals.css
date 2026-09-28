@@ -110,6 +110,20 @@ html {
   textarea {
     font-size: 16px;
   }
+  /* iPhone Safari gives date/time fields a fixed minimum width, so in two-column forms they
+     ran off the right edge of the screen. Let them shrink to their column like other inputs. */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+  }
+  input[type="date"]::-webkit-date-and-time-value,
+  input[type="time"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
 }
 
 @keyframes float {
