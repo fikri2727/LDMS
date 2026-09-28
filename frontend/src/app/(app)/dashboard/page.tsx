@@ -1,4 +1,4 @@
-import { Sparkles, PieChart as PieChartIcon, TrendingUp, BarChart3, Trophy, History } from "lucide-react";
+import { Sparkles, PieChart as PieChartIcon, TrendingUp, BarChart3, Trophy, History, Building2 } from "lucide-react";
 import { requireSession } from "@/lib/guard";
 import { hasOrgWideView } from "@/lib/rbac";
 import { api } from "@/lib/api";
@@ -99,27 +99,32 @@ export default async function DashboardPage({
           accent="#46BEA2"
           className="lg:col-span-2"
         >
-          <div className="flex flex-col">
-            <div className="h-64 shrink-0">
-              {orgWide ? (
-                <DepartmentBarChart data={departmentData!} metric="avgHour" target={hourTarget} />
-              ) : (
-                <MonthlyHoursChart data={monthlyHours!} />
-              )}
-            </div>
-            {!orgWide && myDepartment && (
+          {/* On laptops the chart shrinks with the screen height (between 10rem and 16rem) so the
+              whole dashboard fits without scrolling; on very small screens the page still just
+              scrolls - nothing is forced to fit (that caused overlapping before). */}
+          <div className="h-64 lg:h-[clamp(10rem,calc(100dvh/var(--app-zoom)_-_34rem),16rem)] shrink-0">
+            {orgWide ? (
+              <DepartmentBarChart data={departmentData!} metric="avgHour" target={hourTarget} />
+            ) : (
+              <MonthlyHoursChart data={monthlyHours!} />
+            )}
+          </div>
+        </DashboardCard>
+        <div className="flex flex-col gap-3">
+          <DashboardCard title={orgWide ? "Top 5 Trainers" : "My Top Trainers"} icon={Trophy} accent="#6D3ECD">
+            <TopTrainersTable data={topTrainers} />
+          </DashboardCard>
+          {!orgWide && myDepartment && (
+            <DashboardCard title="My Department" icon={Building2} accent="#46BEA2">
               <DepartmentHourSummary
                 departmentName={myDepartment.departmentFullName}
                 staffCount={myDepartment.staffCount}
                 totalNeeded={Math.round(myDepartment.staffCount * hourTarget)}
                 currentHours={myDepartment.manHour}
               />
-            )}
-          </div>
-        </DashboardCard>
-        <DashboardCard title={orgWide ? "Top 5 Trainers" : "My Top Trainers"} icon={Trophy} accent="#6D3ECD">
-          <TopTrainersTable data={topTrainers} />
-        </DashboardCard>
+            </DashboardCard>
+          )}
+        </div>
       </div>
     </div>
   );

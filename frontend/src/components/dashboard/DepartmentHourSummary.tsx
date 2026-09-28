@@ -10,8 +10,8 @@ export function DepartmentHourSummary({
   currentHours: number;
 }) {
   return (
-    <div className="mt-1.5 pt-1.5 border-t border-border">
-      <p className="text-sm font-semibold text-text-primary mb-1">Department {departmentName}</p>
+    <div>
+      <p className="text-sm font-semibold text-text-primary mb-1">{departmentName}</p>
       <div className="space-y-0.5 text-sm">
         <div className="flex items-center justify-between">
           <span className="text-text-muted">Total Staff</span>
