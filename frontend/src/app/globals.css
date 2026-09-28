@@ -62,6 +62,17 @@ body {
   color: var(--foreground);
 }
 
+/* iPhone/iPad Safari zooms the whole page in when you tap a text field whose text is
+   smaller than 16px - and it stays zoomed after login. On touch devices, form fields
+   use 16px text so that never happens. (Unlayered, so it wins over Tailwind's text-sm.) */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 @keyframes float {
   0%,
   100% {
