@@ -37,3 +37,8 @@ Open http://localhost:3002.
 - Model types that used to come from Prisma live in `src/lib/db-types.ts`.
 
 Permission checks in `src/lib/rbac.ts` only decide what to *show*; the backend enforces them.
+
+## Deploy (Vercel)
+
+Vercel project `ldms` → Root Directory `frontend`, environment variable
+`API_URL=https://ldms-api.vercel.app` (the Python backend, Vercel project `ldms-api`).
