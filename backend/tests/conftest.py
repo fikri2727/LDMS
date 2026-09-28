@@ -56,3 +56,28 @@ def staff_user(db) -> User:
         .order_by(User.id)
         .first()
     )
+
+
+@pytest.fixture
+def fake_storage(monkeypatch):
+    """Replace Supabase Storage calls so tests never touch real files. Returns a log of calls."""
+    calls = {"saved": [], "deleted": []}
+
+    async def fake_save(subdir, file):
+        path = f"{subdir}/fake-{file.filename}"
+        calls["saved"].append(path)
+        return path
+
+    def fake_delete(path):
+        calls["deleted"].append(path)
+
+    import app.routers.elearning as el
+    import app.routers.requisition as rq
+    import app.routers.training as tr
+    import app.services.uploads as up
+
+    for mod in (el, rq, tr):
+        monkeypatch.setattr(mod, "save_upload", fake_save)
+        monkeypatch.setattr(mod, "delete_upload", fake_delete)
+    monkeypatch.setattr(up, "read_upload", lambda path: b"file:" + path.encode())
+    return calls
