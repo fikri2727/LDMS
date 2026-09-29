@@ -111,9 +111,6 @@ export default async function DashboardPage({
           </div>
         </DashboardCard>
         <div className="flex flex-col gap-3">
-          <DashboardCard title={orgWide ? "Top 5 Trainers" : "My Top Trainers"} icon={Trophy} accent="#6D3ECD">
-            <TopTrainersTable data={topTrainers} />
-          </DashboardCard>
           {!orgWide && myDepartment && (
             <DashboardCard title="My Department" icon={Building2} accent="#46BEA2">
               <DepartmentHourSummary
@@ -124,6 +121,9 @@ export default async function DashboardPage({
               />
             </DashboardCard>
           )}
+          <DashboardCard title={orgWide ? "Top 5 Trainers" : "My Top Trainers"} icon={Trophy} accent="#6D3ECD">
+            <TopTrainersTable data={topTrainers} />
+          </DashboardCard>
         </div>
       </div>
     </div>
