@@ -2,11 +2,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requireSession } from "@/lib/guard";
-import { canManageTraining } from "@/lib/rbac";
+import { canEvaluateOnBehalf, canManageTraining } from "@/lib/rbac";
 import { api } from "@/lib/api";
 import { SurveyForm } from "@/components/training/SurveyForm";
 import { SurveyResults } from "@/components/training/SurveyResults";
-import { submitSurvey } from "@/app/(app)/training/public/actions";
+import { OnBehalfBanner } from "@/components/training/OnBehalfBanner";
+import { submitSurvey, submitSurveyOnBehalf } from "@/app/(app)/training/public/actions";
 import type { Participation, StaffOption, Training } from "@/lib/db-types";
 
 export default async function SurveyPage({
@@ -19,7 +20,9 @@ export default async function SurveyPage({
   const trainingId = Number(id);
 
   // The backend only returns this to the participant themself or a training admin.
-  const participation = await api.get<Participation & { training: Training; user: StaffOption }>(
+  const participation = await api.get<
+    Participation & { training: Training; user: StaffOption }
+  >(
     `/api/training/public/${trainingId}/participations/${Number(participationId)}`,
     undefined,
     { on403: `/training/public/${trainingId}` }
@@ -51,7 +54,26 @@ export default async function SurveyPage({
     );
   }
 
-  if (!isOwner) redirect(`/training/public/${trainingId}`);
+  if (!isOwner) {
+    // An admin may fill in a pending participant's survey on their behalf.
+    if (!canEvaluateOnBehalf(session) || participation.attendance !== "PENDING") {
+      redirect(`/training/public/${trainingId}`);
+    }
+    return (
+      <div>
+        <Link href={backHref} className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary mb-4">
+          <ArrowLeft size={15} /> {backLabel}
+        </Link>
+        <h2 className="text-xl font-semibold text-text-primary mb-1">Post-Training Survey</h2>
+        <p className="text-sm text-text-secondary mb-4">{participation.training.title}</p>
+        <OnBehalfBanner>
+          You are filling in this survey <strong>on behalf of {participation.user.staffName} ({participation.user.staffNo})</strong>.
+          It will count as their evaluation.
+        </OnBehalfBanner>
+        <SurveyForm action={submitSurveyOnBehalf.bind(null, trainingId, participation.id)} />
+      </div>
+    );
+  }
 
   return (
     <div>

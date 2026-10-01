@@ -4,7 +4,7 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import QRCode from "qrcode";
 import { requireSession } from "@/lib/guard";
-import { canManageTraining, canViewAllPme } from "@/lib/rbac";
+import { canEvaluateOnBehalf, canManageTraining, canViewAllPme } from "@/lib/rbac";
 import { api } from "@/lib/api";
 import {
   PROGRAM_LABELS,
@@ -56,6 +56,7 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
 
   const manage = canManageTraining(session);
   const viewPme = canViewAllPme(session);
+  const onBehalf = canEvaluateOnBehalf(session);
   const backHref = manage ? "/training/public" : "/training";
   const backLabel = manage ? "Back to Training Records" : "Back to My Training";
 
@@ -231,6 +232,14 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
                           className="text-primary-dark hover:underline text-xs"
                         >
                           View
+                        </Link>
+                      ) : p.attendance === "PENDING" && onBehalf ? (
+                        <Link
+                          href={`/training/public/${training.id}/survey/${p.id}`}
+                          title="Fill in the survey on this participant's behalf"
+                          className="inline-flex rounded-xl bg-primary-dark text-white text-xs font-medium px-2.5 py-1 hover:bg-primary transition-colors"
+                        >
+                          Evaluate
                         </Link>
                       ) : (
                         <span className="text-text-muted text-xs">—</span>

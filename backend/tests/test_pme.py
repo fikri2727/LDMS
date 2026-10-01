@@ -20,7 +20,8 @@ def test_pme_flow(client, db, admin):
 
     admin_view = client.get(f"/api/pme/{pme.id}")
     assert admin_view.status_code == 200 and admin_view.json()["supervisor"]["id"] == supervisor.id
-    assert client.post(f"/api/pme/{pme.id}/evaluate", data={}).json()["detail"].startswith("Only this staff")
+    # (admins may evaluate on the supervisor's behalf - see test_on_behalf.py; incomplete forms are refused)
+    assert client.post(f"/api/pme/{pme.id}/evaluate", data={}).json()["detail"].startswith("Please give a rating")
 
     login_as(client, exec_user)  # the employee themself can't see it
     assert client.get(f"/api/pme/{pme.id}").status_code == 403

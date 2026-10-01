@@ -4,7 +4,7 @@ import { ArrowLeft, Pencil, Eye } from "lucide-react";
 import { format } from "date-fns";
 import QRCode from "qrcode";
 import { requireSession } from "@/lib/guard";
-import { canManageOjt } from "@/lib/rbac";
+import { canEvaluateOnBehalf, canManageOjt } from "@/lib/rbac";
 import { api } from "@/lib/api";
 import { TRAINER_TYPE_LABELS } from "@/lib/labels";
 import { AddParticipantForm } from "@/components/training/AddParticipantForm";
@@ -21,12 +21,14 @@ function ParticipantTable({
   ojtId,
   currentUserId,
   manage,
+  onBehalf,
 }: {
   title: string;
   rows: ParticipantRow[];
   ojtId: number;
   currentUserId: number;
   manage: boolean;
+  onBehalf: boolean;
 }) {
   return (
     <div className="mb-6">
@@ -54,9 +56,10 @@ function ParticipantTable({
                 <td className="px-4 py-3 text-text-secondary">{p.clerk?.staffName ?? "Self"}</td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    {p.userId === currentUserId && p.attendance === "PENDING" && (
+                    {p.attendance === "PENDING" && (p.userId === currentUserId || onBehalf) && (
                       <Link
                         href={`/training/ojt/${ojtId}/survey/${p.id}`}
+                        title={p.userId === currentUserId ? undefined : "Fill in the evaluation on this participant's behalf"}
                         className="inline-flex rounded-xl bg-primary-dark text-white text-xs font-medium px-3 py-1.5 hover:bg-primary transition-colors"
                       >
                         Evaluate
@@ -105,6 +108,7 @@ export default async function OjtDetailPage({ params }: { params: Promise<{ id: 
   const { ojt, staffOptions } = await api.get<{ ojt: Ojt & { participants: ParticipantRow[] }; staffOptions: StaffOption[] }>(`/api/ojt/${ojtId}`);
 
   const manage = canManageOjt(session);
+  const onBehalf = canEvaluateOnBehalf(session);
   const canEdit = manage || ojt.createdByUserId === session.userId;
   const backHref = manage ? "/training/ojt" : "/training";
   const backLabel = manage ? "Back to OJT Records" : "Back to My Training";
@@ -225,8 +229,8 @@ export default async function OjtDetailPage({ params }: { params: Promise<{ id: 
         {manage && <AddParticipantForm staffOptions={staffOptions} onAdd={addOjtParticipant.bind(null, ojt.id)} />}
       </div>
 
-      <ParticipantTable title="Permanent Staff" rows={permanent} ojtId={ojtId} currentUserId={session.userId} manage={manage} />
-      <ParticipantTable title="Contract Staff" rows={contract} ojtId={ojtId} currentUserId={session.userId} manage={manage} />
+      <ParticipantTable title="Permanent Staff" rows={permanent} ojtId={ojtId} currentUserId={session.userId} manage={manage} onBehalf={onBehalf} />
+      <ParticipantTable title="Contract Staff" rows={contract} ojtId={ojtId} currentUserId={session.userId} manage={manage} onBehalf={onBehalf} />
     </div>
   );
 }

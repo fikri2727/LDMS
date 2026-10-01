@@ -16,6 +16,8 @@ export interface PendingPmeRow {
   periodStart: string;
   periodEnd: string;
   due: boolean;
+  /** Admin "waiting on HOD" list: whose name the evaluation is recorded under. */
+  hodName?: string;
 }
 
 type SortKey = "staffName" | "staffNo" | "trainingTitle" | "periodStart" | "periodEnd" | "status";
@@ -29,7 +31,15 @@ const SORT_ACCESSORS: Record<SortKey, (r: PendingPmeRow) => string> = {
   status: (r) => PME_STATUS_LABELS[r.status] ?? r.status,
 };
 
-export function PendingPmeTable({ rows }: { rows: PendingPmeRow[] }) {
+export function PendingPmeTable({
+  rows,
+  showHod = false,
+  emptyLabel = "Nothing to evaluate right now.",
+}: {
+  rows: PendingPmeRow[];
+  showHod?: boolean;
+  emptyLabel?: string;
+}) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -51,7 +61,7 @@ export function PendingPmeTable({ rows }: { rows: PendingPmeRow[] }) {
   }
 
   if (rows.length === 0) {
-    return <p className="text-sm text-text-muted mb-6">Nothing to evaluate right now.</p>;
+    return <p className="text-sm text-text-muted mb-6">{emptyLabel}</p>;
   }
 
   return (
@@ -63,6 +73,7 @@ export function PendingPmeTable({ rows }: { rows: PendingPmeRow[] }) {
             <SortableTh label="Name" active={sortKey === "staffName"} dir={sortDir} onClick={() => toggleSort("staffName")} className="px-4 py-3" />
             <SortableTh label="Staff No." active={sortKey === "staffNo"} dir={sortDir} onClick={() => toggleSort("staffNo")} className="px-4 py-3" />
             <SortableTh label="Training Title" active={sortKey === "trainingTitle"} dir={sortDir} onClick={() => toggleSort("trainingTitle")} className="px-4 py-3" />
+            {showHod && <th className="px-4 py-3 font-medium">HOD / Supervisor</th>}
             <SortableTh label="Evaluation Period Start" active={sortKey === "periodStart"} dir={sortDir} onClick={() => toggleSort("periodStart")} className="px-4 py-3" />
             <SortableTh label="Evaluation Period End" active={sortKey === "periodEnd"} dir={sortDir} onClick={() => toggleSort("periodEnd")} className="px-4 py-3" />
             <SortableTh label="Evaluation Status" active={sortKey === "status"} dir={sortDir} onClick={() => toggleSort("status")} className="px-4 py-3" />
@@ -76,6 +87,7 @@ export function PendingPmeTable({ rows }: { rows: PendingPmeRow[] }) {
               <td className="px-4 py-3 text-text-primary">{r.staffName}</td>
               <td className="px-4 py-3 text-text-secondary">{r.staffNo}</td>
               <td className="px-4 py-3 text-text-secondary">{r.trainingTitle}</td>
+              {showHod && <td className="px-4 py-3 text-text-secondary">{r.hodName ?? "— (not assigned)"}</td>}
               <td className="px-4 py-3 text-text-secondary">{format(new Date(r.periodStart), "yyyy-MM-dd")}</td>
               <td className="px-4 py-3 text-text-secondary">{format(new Date(r.periodEnd), "yyyy-MM-dd")}</td>
               <td className="px-4 py-3">

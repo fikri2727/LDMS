@@ -10,7 +10,7 @@ from app.deps import DB, CurrentUser
 from app.forms import Form, bad, fstr
 from app.labels import RATING_BAND_RANGES, RATING_BAND_SHORT_LABELS
 from app.models import Pme, PmeStatus, RatingBand, StaffStatus, User
-from app.rbac import can_view_all_pme
+from app.rbac import can_evaluate_on_behalf, can_view_all_pme
 from app.serialize import ser
 from app.services.pme import get_evaluation_period, is_pme_due
 from app.services.util import js_round, now_utc
@@ -22,12 +22,26 @@ router = APIRouter(prefix="/api/pme", tags=["pme"])
 def pme_list(db: DB, user: CurrentUser):
     """Supervisor: my team, PMEs waiting on me, my completed ones. Admin: the latest 100, view-only."""
     if can_view_all_pme(user):
+        # Due PMEs still waiting on a supervisor — the admin can evaluate these on the supervisor's behalf.
+        waiting = [
+            p
+            for p in db.scalars(
+                select(Pme)
+                .options(joinedload(Pme.training), joinedload(Pme.supervisor))
+                .where(Pme.status == PmeStatus.PENDING)
+                .order_by(Pme.created_at)
+            ).all()
+            if is_pme_due(p.training.end_date)
+        ]
         return {
             "viewAll": True,
             "myTeam": [],
             "myPmes": [],
             "completed": [],
             "allRecords": ser(db.scalars(select(Pme).order_by(Pme.created_at.desc()).limit(100)).all()),
+            "dueWaiting": ser(waiting, {"training": True, "supervisor": ("id", "staffNo", "staffName")})
+            if can_evaluate_on_behalf(user)
+            else [],
         }
     my_team = db.scalars(
         select(User)
@@ -53,6 +67,7 @@ def pme_list(db: DB, user: CurrentUser):
         "myPmes": ser(my_pmes, {"training": True}),
         "completed": ser(completed),
         "allRecords": [],
+        "dueWaiting": [],
     }
 
 
@@ -60,13 +75,34 @@ def pme_list(db: DB, user: CurrentUser):
 def pme_detail(pme_id: int, db: DB, user: CurrentUser):
     """Only the assigned supervisor (who evaluates) or an admin (read-only) — not even the employee."""
     pme = db.scalar(
-        select(Pme).options(joinedload(Pme.training), joinedload(Pme.supervisor)).where(Pme.id == pme_id)
+        select(Pme)
+        .options(
+            joinedload(Pme.training),
+            joinedload(Pme.supervisor),
+            joinedload(Pme.keyed_in_by),
+            joinedload(Pme.user).joinedload(User.supervisor),
+        )
+        .where(Pme.id == pme_id)
     )
     if pme is None:
         raise HTTPException(404, "PME not found.")
     if pme.supervisor_id != user.id and not can_view_all_pme(user):
         raise HTTPException(403, "You do not have permission to view this PME.")
-    return ser(pme, {"training": True, "supervisor": ("id", "staffNo", "staffName")})
+    staff_fields = ("id", "staffNo", "staffName")
+    out = ser(pme, {"training": True, "supervisor": staff_fields})
+    admin = can_evaluate_on_behalf(user)
+    # Admin-only extras: who actually keyed it in, and whose name an on-behalf evaluation will carry.
+    out["keyedInBy"] = ser(pme.keyed_in_by, staff_fields) if admin else None
+    out["onBehalfOf"] = ser(_evaluator(pme), staff_fields) if admin else None
+    if not admin:
+        out["keyedInById"] = None
+    return out
+
+
+def _evaluator(pme: Pme) -> User | None:
+    """The supervisor an evaluation is recorded under: the one snapshotted on the PME, else the
+    staff member's current supervisor (e.g. none was set when the PME was created)."""
+    return pme.supervisor or pme.user.supervisor
 
 
 def _rating_fields(form, prefix: str, question_label: str) -> dict:
@@ -96,12 +132,23 @@ def _rating_fields(form, prefix: str, question_label: str) -> dict:
 
 @router.post("/{pme_id}/evaluate")
 def evaluate_pme(pme_id: int, form: Form, db: DB, user: CurrentUser):
-    """The assigned supervisor fills in and submits the evaluation in one step."""
-    pme = db.scalar(select(Pme).options(joinedload(Pme.training)).where(Pme.id == pme_id))
+    """The assigned supervisor fills in and submits the evaluation in one step. An admin may do it on
+    the supervisor's behalf: the supervisor stays "Evaluated By", the admin is recorded in keyedInById."""
+    pme = db.scalar(
+        select(Pme)
+        .options(joinedload(Pme.training), joinedload(Pme.supervisor), joinedload(Pme.user).joinedload(User.supervisor))
+        .where(Pme.id == pme_id)
+    )
     if pme is None:
         raise HTTPException(404, "PME not found.")
-    if pme.supervisor_id != user.id:
-        raise bad("Only this staff member's supervisor can evaluate this PME.")
+    on_behalf = pme.supervisor_id != user.id
+    if on_behalf:
+        if not can_evaluate_on_behalf(user):
+            raise bad("Only this staff member's supervisor can evaluate this PME.")
+        evaluator = _evaluator(pme)
+        if evaluator is None:
+            raise bad("This staff member has no supervisor (HOD) assigned. Set one on their Staff List profile first.")
+        pme.supervisor_id = evaluator.id  # "Evaluated By" is always the supervisor
     if pme.status != PmeStatus.PENDING:
         raise bad("This PME has already been evaluated.")
     if not is_pme_due(pme.training.end_date):
@@ -111,6 +158,8 @@ def evaluate_pme(pme_id: int, form: Form, db: DB, user: CurrentUser):
     level2 = _rating_fields(form, "level2", "Learning")
     behavioral = _rating_fields(form, "behavioral", "Behavior")
     result = _rating_fields(form, "result", "Results")
+    if any(x["rating"] is None or x["percent_number"] is None for x in (level, level2, behavioral, result)):
+        raise bad("Please give a rating and percentage for all 4 questions.")
 
     nums = [x["percent_number"] for x in (level, level2, behavioral, result) if x["percent_number"] is not None]
     ojt_raw = fstr(form, "ojtConducted")
@@ -129,5 +178,6 @@ def evaluate_pme(pme_id: int, form: Form, db: DB, user: CurrentUser):
     pme.average_mark = sum(nums) / len(nums) if nums else None
     pme.status = PmeStatus.VERIFIED
     pme.evaluated_at = now_utc()
+    pme.keyed_in_by_id = user.id if on_behalf else None
     db.commit()
     return {"ok": True}

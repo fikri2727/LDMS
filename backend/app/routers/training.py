@@ -26,7 +26,7 @@ from app.models import (
     TrainingProgram,
     User,
 )
-from app.rbac import can_manage_training
+from app.rbac import can_evaluate_on_behalf, can_manage_training
 from app.serialize import ser
 from app.services.elearning import module_hours_map
 from app.services.survey import apply_survey_answers
@@ -219,7 +219,14 @@ def participation_detail(training_id: int, participation_id: int, db: DB, user: 
         raise HTTPException(404, "Not found.")
     if p.user_id != user.id and not can_manage_training(user):
         raise HTTPException(403, "You do not have permission to view this survey.")
-    return ser(p, {"training": True, "user": ("id", "staffNo", "staffName")})
+    out = ser(p, {"training": True, "user": ("id", "staffNo", "staffName")})
+    # Who keyed it in on the participant's behalf is shown to admins only.
+    out["keyedInBy"] = (
+        ser(p.keyed_in_by, ("id", "staffNo", "staffName")) if p.keyed_in_by and can_evaluate_on_behalf(user) else None
+    )
+    if not can_evaluate_on_behalf(user):
+        out["keyedInById"] = None
+    return out
 
 
 @router.get("/elearning-hours")
@@ -313,10 +320,16 @@ def mark_absent(training_id: int, participation_id: int, db: DB, _: TrainingAdmi
 @router.post("/public/{training_id}/participants/{participation_id}/survey")
 def submit_survey(training_id: int, participation_id: int, form: Form, db: DB, user: CurrentUser):
     p = _get_participation(db, training_id, participation_id)
-    # Only the participant themself (or a training admin) may submit their evaluation.
-    if p.user_id != user.id and not can_manage_training(user):
+    # The participant themself, or an admin filling it in on their behalf.
+    on_behalf = p.user_id != user.id
+    if on_behalf and not can_evaluate_on_behalf(user):
         raise HTTPException(403, "You do not have permission to submit this evaluation.")
+    if p.attendance == AttendanceStatus.COMPLETED:
+        raise bad("This evaluation has already been submitted.")
+    if on_behalf and p.attendance != AttendanceStatus.PENDING:
+        raise bad("This participant is marked absent.")
     apply_survey_answers(db, p, form)
+    p.keyed_in_by_id = user.id if on_behalf else None
     db.commit()
     return {"ok": True}
 

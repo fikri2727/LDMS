@@ -44,6 +44,13 @@ export async function submitSurvey(trainingId: number, participationId: number, 
   redirect("/training");
 }
 
+/** Admin filling in a participant's survey on their behalf -> back to the training's roster. */
+export async function submitSurveyOnBehalf(trainingId: number, participationId: number, formData: FormData) {
+  await api.post(`/api/training/public/${trainingId}/participants/${participationId}/survey`, formData);
+  revalidatePath(`/training/public/${trainingId}`);
+  redirect(`/training/public/${trainingId}`);
+}
+
 export async function uploadCertificate(trainingId: number, formData: FormData) {
   await api.post(`/api/training/public/${trainingId}/certificates`, formData);
   revalidatePath(`/training/public/${trainingId}`);

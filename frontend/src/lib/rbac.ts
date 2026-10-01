@@ -37,6 +37,14 @@ export function canViewAllPme(session: SessionData) {
   return session.roleType === "ADMIN";
 }
 
+/**
+ * Admin can fill in a pending Public/Inhouse survey or OJT evaluation for a participant,
+ * and a due PME for the staff member's supervisor (the supervisor stays "Evaluated By").
+ */
+export function canEvaluateOnBehalf(session: SessionData) {
+  return session.roleType === "ADMIN";
+}
+
 /** E-Learning: Admin and Creator build/manage modules — everyone else is a learner. */
 export function canManageElearning(session: SessionData) {
   return session.roleType === "ADMIN" || session.roleType === "CREATOR";

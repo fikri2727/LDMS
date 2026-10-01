@@ -289,12 +289,15 @@ class Participation(Base):
     what_learnt: Mapped[str | None] = mapped_column("whatLearnt", Text)
     action_plan: Mapped[str | None] = mapped_column("actionPlan", Text)
     comment_suggestions: Mapped[str | None] = mapped_column("commentSuggestions", Text)
+    # Set when an admin filled in the survey on the participant's behalf (audit only).
+    keyed_in_by_id: Mapped[int | None] = mapped_column("keyedInById", ForeignKey("User.id", ondelete="SET NULL"))
 
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()
 
     training: Mapped[Training] = relationship(back_populates="participations")
-    user: Mapped[User] = relationship()
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    keyed_in_by: Mapped[User | None] = relationship(foreign_keys=[keyed_in_by_id])
     pme: Mapped["Pme | None"] = relationship(back_populates="participation", passive_deletes=True, cascade="all, delete-orphan")
 
 
@@ -400,6 +403,8 @@ class Pme(Base):
     average_mark: Mapped[float | None] = mapped_column("averageMark", Float)
     status: Mapped[PmeStatus] = mapped_column(pg_enum(PmeStatus), default=PmeStatus.PENDING)
     evaluated_at: Mapped[datetime | None] = mapped_column("evaluatedAt", DateTime)
+    # Set when an admin evaluated on the supervisor's behalf (audit only; "Evaluated By" stays the supervisor).
+    keyed_in_by_id: Mapped[int | None] = mapped_column("keyedInById", ForeignKey("User.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()
 
@@ -407,6 +412,7 @@ class Pme(Base):
     participation: Mapped[Participation] = relationship(back_populates="pme")
     user: Mapped[User] = relationship(foreign_keys=[user_id])
     supervisor: Mapped[User | None] = relationship(foreign_keys=[supervisor_id])
+    keyed_in_by: Mapped[User | None] = relationship(foreign_keys=[keyed_in_by_id])
 
 
 # ---------- E-Learning ----------

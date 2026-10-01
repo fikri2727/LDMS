@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/guard";
-import { canManageStaff } from "@/lib/rbac";
+import { canEvaluateOnBehalf, canManageStaff } from "@/lib/rbac";
 import { api } from "@/lib/api";
-import type { Department, Pme, Training, User } from "@/lib/db-types";
+import type { Department, Pme, StaffOption, Training, User } from "@/lib/db-types";
 import { getEvaluationPeriod, isPmeDue } from "@/lib/pme";
 import { CollapsibleSection } from "@/components/training/CollapsibleSection";
 import { PmeGroupedTable } from "@/components/training/PmeGroupedTable";
@@ -12,15 +12,16 @@ import { PmeCompletedTable } from "@/components/training/PmeCompletedTable";
 export default async function PmeListPage() {
   const session = await requireSession();
 
-  const { viewAll, myTeam, myPmes, completed, allRecords } = await api.get<{
+  const { viewAll, myTeam, myPmes, completed, allRecords, dueWaiting } = await api.get<{
     viewAll: boolean;
     myTeam: (User & { department: Department | null })[];
     myPmes: (Pme & { training: Training })[];
     completed: Pme[];
     allRecords: Pme[];
+    dueWaiting: (Pme & { training: Training; supervisor: StaffOption | null })[];
   }>("/api/pme");
 
-  const pending = myPmes.map((p) => {
+  const toPendingRow = (p: Pme & { training: Training; supervisor?: StaffOption | null }) => {
     const period = getEvaluationPeriod(p.training.endDate);
     return {
       id: p.id,
@@ -31,8 +32,11 @@ export default async function PmeListPage() {
       periodStart: period.start.toISOString(),
       periodEnd: period.end.toISOString(),
       due: isPmeDue(p.training.endDate),
+      hodName: p.supervisor?.staffName,
     };
-  });
+  };
+  const pending = myPmes.map(toPendingRow);
+  const waitingRows = dueWaiting.map(toPendingRow);
 
   const completedRows = completed.map((r) => ({
     id: r.id,
@@ -100,6 +104,18 @@ export default async function PmeListPage() {
 
       {viewAll && (
         <>
+          {canEvaluateOnBehalf(session) && (
+            <>
+              <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-1">
+                Due — Waiting on HOD ({waitingRows.length})
+              </h3>
+              <p className="text-xs text-text-muted mb-3">
+                You can evaluate these on the HOD&apos;s behalf. &quot;Evaluated By&quot; will still show the HOD.
+              </p>
+              <PendingPmeTable rows={waitingRows} showHod emptyLabel="No PMEs are waiting on a HOD." />
+            </>
+          )}
+
           <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
             All PME Records <span className="normal-case text-text-muted">(view only, by training title)</span>
           </h3>

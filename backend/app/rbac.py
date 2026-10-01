@@ -33,6 +33,12 @@ def can_view_all_pme(u: User) -> bool:
     return u.role_type == RoleType.ADMIN
 
 
+def can_evaluate_on_behalf(u: User) -> bool:
+    """Admin can fill in a pending Public/Inhouse survey or OJT evaluation for a participant, and a due
+    PME for the staff member's supervisor (the supervisor's name stays as "Evaluated By")."""
+    return u.role_type == RoleType.ADMIN
+
+
 def can_manage_elearning(u: User) -> bool:
     """E-Learning: Admin and Creator build/manage modules — everyone else is a learner."""
     return u.role_type in (RoleType.ADMIN, RoleType.CREATOR)
@@ -67,6 +73,7 @@ def permissions_for(u: User) -> dict[str, bool]:
         "canManageOjt": can_manage_ojt(u),
         "hasOrgWideView": has_org_wide_view(u),
         "canViewAllPme": can_view_all_pme(u),
+        "canEvaluateOnBehalf": can_evaluate_on_behalf(u),
         "canManageElearning": can_manage_elearning(u),
         "canManageTna": can_manage_tna(u),
         "canSubmitTna": can_submit_tna(u),

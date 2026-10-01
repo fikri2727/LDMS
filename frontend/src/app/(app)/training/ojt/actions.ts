@@ -58,3 +58,10 @@ export async function submitOjtSurvey(ojtId: number, participationId: number, fo
   revalidatePath("/training");
   redirect("/training");
 }
+
+/** Admin filling in a participant's OJT evaluation on their behalf -> back to the OJT roster. */
+export async function submitOjtSurveyOnBehalf(ojtId: number, participationId: number, formData: FormData) {
+  await api.post(`/api/ojt/${ojtId}/participants/${participationId}/survey`, formData);
+  revalidatePath(`/training/ojt/${ojtId}`);
+  redirect(`/training/ojt/${ojtId}`);
+}

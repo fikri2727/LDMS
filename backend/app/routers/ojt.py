@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.deps import DB, CurrentUser
 from app.forms import Form, bad, fdate, ffile, fint, fstr
 from app.models import AttendanceStatus, Ojt, ParticipateOjt, StaffStatus, TrainerType, User
-from app.rbac import can_manage_ojt
+from app.rbac import can_evaluate_on_behalf, can_manage_ojt
 from app.serialize import Sel, ser
 from app.services.excel import parse_ojt_excel
 from app.services.survey import apply_ojt_survey_answers, department_snapshot
@@ -264,12 +264,17 @@ def remove_participant(ojt_id: int, participation_id: int, db: DB, user: Current
 
 @router.post("/{ojt_id}/participants/{participation_id}/survey")
 def submit_survey(ojt_id: int, participation_id: int, form: Form, db: DB, user: CurrentUser):
-    """The participant evaluates their own before/after skill survey."""
+    """The participant evaluates their own before/after skill survey (or an admin on their behalf)."""
     p = db.get(ParticipateOjt, participation_id)
     if p is None or p.ojt_id != ojt_id:
         raise HTTPException(404, "Participant not found.")
-    if p.user_id != user.id:
+    on_behalf = p.user_id != user.id
+    if on_behalf and not can_evaluate_on_behalf(user):
         raise HTTPException(403, "You do not have permission to submit this evaluation.")
+    if p.attendance == AttendanceStatus.COMPLETED:
+        raise bad("This evaluation has already been submitted.")
     apply_ojt_survey_answers(db, p, form)
+    if on_behalf:
+        p.clerk_id = user.id  # shown as "Key In By"
     db.commit()
     return {"ok": True}

@@ -2,11 +2,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requireSession } from "@/lib/guard";
-import { canManageOjt } from "@/lib/rbac";
+import { canEvaluateOnBehalf, canManageOjt } from "@/lib/rbac";
 import { api } from "@/lib/api";
 import { OjtSurveyForm } from "@/components/training/OjtSurveyForm";
 import { OjtSurveyResults } from "@/components/training/OjtSurveyResults";
-import { submitOjtSurvey } from "@/app/(app)/training/ojt/actions";
+import { OnBehalfBanner } from "@/components/training/OnBehalfBanner";
+import { submitOjtSurvey, submitOjtSurveyOnBehalf } from "@/app/(app)/training/ojt/actions";
 import type { Ojt, ParticipateOjt, StaffOption } from "@/lib/db-types";
 
 export default async function OjtSurveyPage({
@@ -48,7 +49,24 @@ export default async function OjtSurveyPage({
     );
   }
 
-  if (!isOwner) redirect(`/training/ojt/${ojtId}`);
+  if (!isOwner) {
+    // An admin may fill in a pending participant's evaluation on their behalf.
+    if (!canEvaluateOnBehalf(session) || participation.attendance !== "PENDING") redirect(`/training/ojt/${ojtId}`);
+    return (
+      <div>
+        <Link href={backHref} className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary mb-4">
+          <ArrowLeft size={15} /> {backLabel}
+        </Link>
+        <h2 className="text-xl font-semibold text-text-primary mb-1">OJT Skill Evaluation</h2>
+        <p className="text-sm text-text-secondary mb-4">{participation.ojt.title}</p>
+        <OnBehalfBanner>
+          You are filling in this evaluation <strong>on behalf of {participation.user.staffName} ({participation.user.staffNo})</strong>.
+          It will count as their evaluation, and you will be shown as &quot;Key In By&quot;.
+        </OnBehalfBanner>
+        <OjtSurveyForm action={submitOjtSurveyOnBehalf.bind(null, ojtId, participation.id)} />
+      </div>
+    );
+  }
 
   return (
     <div>

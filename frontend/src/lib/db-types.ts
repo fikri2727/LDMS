@@ -119,6 +119,7 @@ export interface Participation {
   whatLearnt: string | null;
   actionPlan: string | null;
   commentSuggestions: string | null;
+  keyedInById: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -182,6 +183,7 @@ export interface Pme {
   averageMark: number | null;
   status: PmeStatus;
   evaluatedAt: Date | null;
+  keyedInById: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

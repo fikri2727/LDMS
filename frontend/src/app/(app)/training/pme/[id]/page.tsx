@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Users, BookOpen, Target, TrendingUp, CheckCircle2, XCircle, Award } from "lucide-react";
 import { format } from "date-fns";
 import { requireSession } from "@/lib/guard";
-import { canViewAllPme } from "@/lib/rbac";
+import { canEvaluateOnBehalf, canViewAllPme } from "@/lib/rbac";
 import { api } from "@/lib/api";
 import type { Pme, StaffOption, Training } from "@/lib/db-types";
 import { PME_STATUS_LABELS, RATING_BAND_LABELS, RATING_BAND_SHORT_LABELS } from "@/lib/labels";
@@ -10,6 +10,7 @@ import { getPmeDueDate, isPmeDue, getEvaluationPeriod } from "@/lib/pme";
 import { PME_QUESTIONS, PME_OJT_QUESTION } from "@/lib/pme-questions";
 import { PmeEvaluationForm } from "@/components/training/PmeEvaluationForm";
 import { evaluatePme } from "@/app/(app)/training/pme/actions";
+import { OnBehalfBanner } from "@/components/training/OnBehalfBanner";
 
 /** Colour per rating band — drives the score ring, question accents, and progress bars below. */
 const RATING_BAND_COLORS: Record<string, string> = {
@@ -149,7 +150,14 @@ export default async function PmeDetailPage({ params }: { params: Promise<{ id: 
 
   // Only the assigned supervisor (who can evaluate) or an admin (read-only, for
   // monitoring) may view this PME record — no one else, including the employee.
-  const pme = await api.get<Pme & { training: Training; supervisor: StaffOption | null }>(
+  // onBehalfOf is only filled in for admins.
+  const pme = await api.get<
+    Pme & {
+      training: Training;
+      supervisor: StaffOption | null;
+      onBehalfOf: StaffOption | null;
+    }
+  >(
     `/api/pme/${pmeId}`,
     undefined,
     { on403: "/training/pme" }
@@ -157,6 +165,7 @@ export default async function PmeDetailPage({ params }: { params: Promise<{ id: 
 
   const isSupervisor = pme.supervisorId === session.userId;
   const isAdminViewer = !isSupervisor && canViewAllPme(session);
+  const canDoOnBehalf = isAdminViewer && canEvaluateOnBehalf(session);
 
   const due = isPmeDue(pme.training.endDate);
   const dueDate = getPmeDueDate(pme.training.endDate);
@@ -186,11 +195,18 @@ export default async function PmeDetailPage({ params }: { params: Promise<{ id: 
         </p>
       )}
 
-      {pme.status === "PENDING" && due && isSupervisor && (
+      {pme.status === "PENDING" && due && (isSupervisor || (canDoOnBehalf && pme.onBehalfOf)) && (
         <div className="mb-4">
-          <p className="text-xs text-text-secondary mb-3">
-            Please complete the Performance Monitoring Evaluation for this staff member.
-          </p>
+          {isSupervisor ? (
+            <p className="text-xs text-text-secondary mb-3">
+              Please complete the Performance Monitoring Evaluation for this staff member.
+            </p>
+          ) : (
+            <OnBehalfBanner>
+              You are evaluating <strong>on behalf of {pme.onBehalfOf?.staffName} ({pme.onBehalfOf?.staffNo})</strong>.
+              &quot;Evaluated By&quot; will show {pme.onBehalfOf?.staffName}.
+            </OnBehalfBanner>
+          )}
           <PmeEvaluationForm
             action={evaluatePme.bind(null, pme.id)}
             employee={{
@@ -205,9 +221,11 @@ export default async function PmeDetailPage({ params }: { params: Promise<{ id: 
         </div>
       )}
 
-      {pme.status === "PENDING" && due && isAdminViewer && (
+      {pme.status === "PENDING" && due && isAdminViewer && !(canDoOnBehalf && pme.onBehalfOf) && (
         <p className="text-sm text-text-muted">
-          Due, but not yet evaluated — waiting on {pme.supervisor?.staffName ?? "the assigned supervisor"}.
+          {canDoOnBehalf
+            ? "Due, but this staff member has no supervisor (HOD) assigned. Set one on their Staff List profile to evaluate on the HOD's behalf."
+            : `Due, but not yet evaluated — waiting on ${pme.supervisor?.staffName ?? "the assigned supervisor"}.`}
         </p>
       )}
 
