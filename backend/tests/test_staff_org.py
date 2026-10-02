@@ -2,7 +2,7 @@ import io
 
 from openpyxl import Workbook
 
-from app.models import Department, Division, User
+from app.models import Department, Division, StaffStatus, User
 from tests.conftest import login_as
 
 
@@ -53,9 +53,9 @@ def test_create_update_reset_delete_staff(admin_client, db):
     u = db.get(User, new_id)
     assert u.staff_no == "ZZ9999" and u.staff_name == "TEST PERSON" and u.hod_id == dept.hod_user_id
 
-    # duplicate staff no
-    r = admin_client.post("/api/staff", data={"staffNo": "ZZ9999", "staffName": "x", "gender": "MALE", "designation": "EXECUTIVE"})
-    assert r.status_code == 400
+    # duplicate staff no (case and spaces don't matter)
+    r = admin_client.post("/api/staff", data={"staffNo": " zz9999 ", "staffName": "x", "gender": "MALE", "designation": "EXECUTIVE"})
+    assert r.status_code == 400 and r.json()["detail"] == 'Staff No "ZZ9999" already exists: TEST PERSON.'
 
     r = admin_client.post(f"/api/staff/{new_id}", data={"staffName": "renamed", "gender": "FEMALE",
                           "designation": "MANAGER", "status": "RESIGN", "dateResign": "2026-01-31", "supervisorId": str(new_id)})
@@ -124,3 +124,24 @@ def test_org_crud(admin_client, db, staff_user):
     assert admin_client.delete(f"/api/org/departments/{dept.id}").status_code == 200
     db.expire_all()
     assert staff_user.department_id is None
+
+
+def test_check_staff_no(client, admin_client, db, staff_user):
+    r = admin_client.get("/api/staff/check-staff-no", params={"staffNo": f" {staff_user.staff_no.lower()} "})
+    assert r.json() == {
+        "staffNo": staff_user.staff_no, "exists": True, "id": staff_user.id,
+        "staffName": staff_user.staff_name, "status": "ACTIVE",
+    }
+    assert admin_client.get("/api/staff/check-staff-no", params={"staffNo": "ZZ-NOPE-1"}).json() == {
+        "staffNo": "ZZ-NOPE-1", "exists": False}
+    assert admin_client.get("/api/staff/check-staff-no").json()["exists"] is False
+
+    login_as(client, staff_user)  # admins only
+    assert client.get("/api/staff/check-staff-no", params={"staffNo": "X"}).status_code == 403
+    login_as(client, db.query(User).filter_by(staff_no="ADMIN01").one())
+
+    # resigned staff still block their number
+    staff_user.status = StaffStatus.RESIGN
+    db.flush()
+    r = admin_client.post("/api/staff", data={"staffNo": staff_user.staff_no, "staffName": "x", "gender": "MALE", "designation": "EXECUTIVE"})
+    assert r.status_code == 400 and r.json()["detail"].endswith("(resigned).")

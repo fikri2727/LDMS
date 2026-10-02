@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app.deps import DB, require
@@ -117,6 +118,26 @@ def form_options(db: DB, _: StaffAdmin, excludeId: int | None = None):
     return {"divisions": division_tree(db), "supervisorOptions": active_staff_options(db, exclude_id=excludeId)}
 
 
+def _normalize_staff_no(raw: str) -> str:
+    return raw.strip().upper()
+
+
+@router.get("/check-staff-no")
+def check_staff_no(db: DB, _: StaffAdmin, staffNo: str = ""):
+    """Add Staff form: live check whether a Staff No. is already taken (including resigned staff)."""
+    staff_no = _normalize_staff_no(staffNo)
+    user = db.scalar(select(User).where(User.staff_no == staff_no)) if staff_no else None
+    if user is None:
+        return {"staffNo": staff_no, "exists": False}
+    return {
+        "staffNo": staff_no,
+        "exists": True,
+        "id": user.id,
+        "staffName": user.staff_name,
+        "status": user.status.value,
+    }
+
+
 @router.get("/{staff_id}")
 def get_staff(staff_id: int, db: DB, _: StaffAdmin):
     user = db.get(User, staff_id)
@@ -226,14 +247,15 @@ def training_record(staff_id: int, db: DB, _: StaffAdmin):
 
 @router.post("")
 def create_staff(form: Form, db: DB, _: StaffAdmin):
-    staff_no = fstr(form, "staffNo").strip().upper()
+    staff_no = _normalize_staff_no(fstr(form, "staffNo"))
     staff_name = fstr(form, "staffName").strip().upper()
     gender = fstr(form, "gender")
     designation = fstr(form, "designation")
     if not staff_no or not staff_name or not gender or not designation:
         raise bad("Staff No., Name, Gender, and Designation are required.")
-    if db.scalar(select(User.id).where(User.staff_no == staff_no)):
-        raise bad(f'Staff No "{staff_no}" already exists.')
+    existing = db.scalar(select(User).where(User.staff_no == staff_no))
+    if existing:
+        raise bad(_duplicate_message(existing))
 
     department_id = fint(form, "departmentId")
     user = User(
@@ -254,11 +276,20 @@ def create_staff(form: Form, db: DB, _: StaffAdmin):
         status=StaffStatus.ACTIVE,
     )
     db.add(user)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:  # another admin created the same Staff No. a moment ago
+        db.rollback()
+        raise bad(f'Staff No "{staff_no}" already exists.')
     if department_id:
         sync_department_hod(db, department_id)
     db.commit()
     return {"id": user.id}
+
+
+def _duplicate_message(user: User) -> str:
+    resigned = " (resigned)" if user.status == StaffStatus.RESIGN else ""
+    return f'Staff No "{user.staff_no}" already exists: {user.staff_name}{resigned}.'
 
 
 @router.post("/bulk-upload")

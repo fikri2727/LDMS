@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { checkStaffNo, type StaffFormResult, type StaffNoCheck } from "@/app/(app)/staff/actions";
 import { DESIGNATION_LABELS, GENDER_LABELS, ROLE_LABELS } from "@/lib/labels";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -43,13 +45,12 @@ interface StaffInitial {
   dateResign?: string | null;
 }
 
-function SubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus();
+function SubmitButton({ label, pending, blocked = false }: { label: string; pending: boolean; blocked?: boolean }) {
   const confirm = useConfirm();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || blocked}
       onClick={async (e) => {
         e.preventDefault();
         const form = e.currentTarget.form;
@@ -78,7 +79,7 @@ export function StaffForm({
   isNew,
   submitLabel,
 }: {
-  action: (formData: FormData) => void;
+  action: (formData: FormData) => Promise<StaffFormResult>;
   divisions: DivisionOpt[];
   supervisorOptions: SupervisorOpt[];
   initial?: StaffInitial;
@@ -98,6 +99,52 @@ export function StaffForm({
     initial?.supervisorId ? String(initial.supervisorId) : ""
   );
   const [status, setStatus] = useState<string>(initial?.status ?? "ACTIVE");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [recheck, setRecheck] = useState(0);
+
+  // Add Staff: check the Staff No. against existing records (active and resigned) while typing.
+  const [staffNo, setStaffNo] = useState("");
+  const typedNo = staffNo.trim().toUpperCase();
+  const [lookup, setLookup] = useState<{ staffNo: string; result: StaffNoCheck | null; recheck: number } | null>(
+    null
+  );
+  useEffect(() => {
+    if (!isNew || !typedNo) return;
+    let stale = false;
+    const timer = setTimeout(async () => {
+      let result: StaffNoCheck | null = null;
+      try {
+        result = await checkStaffNo(typedNo);
+      } catch {
+        // ignore - the server re-checks on save anyway
+      }
+      if (!stale) setLookup({ staffNo: typedNo, result, recheck });
+    }, 400);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
+  }, [isNew, typedNo, recheck]);
+  const check: StaffNoCheck | "checking" | null =
+    !isNew || !typedNo
+      ? null
+      : lookup?.staffNo === typedNo && lookup.recheck === recheck
+        ? lookup.result
+        : "checking";
+  const duplicate = check !== null && check !== "checking" && check.exists ? check : null;
+
+  function handleSubmit(formData: FormData) {
+    setError(null);
+    startTransition(async () => {
+      const result = await action(formData);
+      if (result?.error) {
+        setError(result.error);
+        setRecheck((n) => n + 1); // e.g. someone else just took this Staff No.
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+  }
 
   const departments = useMemo(
     () => divisions.find((d) => String(d.id) === divisionId)?.departments ?? [],
@@ -109,7 +156,19 @@ export function StaffForm({
   );
 
   return (
-    <form action={action} className="space-y-6 max-w-2xl">
+    // onSubmit (not a form action) so a rejected save keeps everything that was typed.
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit(new FormData(e.currentTarget));
+      }}
+      className="space-y-6 max-w-2xl"
+    >
+      {error && (
+        <p className="flex items-start gap-2 text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+          <AlertCircle size={16} className="mt-0.5 shrink-0" /> {error}
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">Staff No.</label>
@@ -118,8 +177,31 @@ export function StaffForm({
             defaultValue={initial?.staffNo}
             disabled={!isNew}
             required
-            className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-primary disabled:bg-gray-100 disabled:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+            autoComplete="off"
+            onChange={isNew ? (e) => setStaffNo(e.target.value) : undefined}
+            aria-invalid={duplicate ? true : undefined}
+            className={`w-full rounded-xl border bg-surface px-3 py-2.5 text-sm text-text-primary disabled:bg-gray-100 disabled:text-text-muted focus:outline-none focus:ring-2 ${
+              duplicate ? "border-rose-400 focus:ring-rose-300" : "border-border focus:ring-primary"
+            }`}
           />
+          {isNew && check === "checking" && <p className="mt-1 text-xs text-text-muted">Checking…</p>}
+          {duplicate && (
+            <p className="mt-1 flex items-start gap-1 text-xs text-rose-600">
+              <AlertCircle size={13} className="mt-px shrink-0" />
+              <span>
+                Staff No. {duplicate.staffNo} already exists: {duplicate.staffName}
+                {duplicate.status === "RESIGN" ? " (resigned)" : ""}.{" "}
+                <Link href={`/staff/${duplicate.id}`} className="underline font-medium">
+                  View staff
+                </Link>
+              </span>
+            </p>
+          )}
+          {check !== null && check !== "checking" && !check.exists && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-primary-dark">
+              <CheckCircle2 size={13} /> {check.staffNo} is available.
+            </p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">Full Name</label>
@@ -312,7 +394,7 @@ export function StaffForm({
         </p>
       )}
 
-      <SubmitButton label={submitLabel} />
+      <SubmitButton label={submitLabel} pending={pending} blocked={duplicate !== null} />
     </form>
   );
 }
