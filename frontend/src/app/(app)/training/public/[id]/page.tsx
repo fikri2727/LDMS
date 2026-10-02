@@ -205,6 +205,7 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
               <tr>
+                <th className="px-4 py-3 font-medium w-12">No.</th>
                 <th className="px-4 py-3 font-medium">Staff</th>
                 <th className="px-4 py-3 font-medium">Department</th>
                 <th className="px-4 py-3 font-medium">Attendance</th>
@@ -214,8 +215,9 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {visibleParticipations.map((p) => (
+              {visibleParticipations.map((p, i) => (
                 <tr key={p.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-text-muted">{i + 1}</td>
                   <td className="px-4 py-3 text-text-primary">
                     {p.user.staffName}
                     <span className="text-text-muted ml-1">({p.user.staffNo})</span>
@@ -273,7 +275,7 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
               {visibleParticipations.length === 0 && (
                 <tr>
                   <td
-                    colSpan={3 + (viewPme ? 1 : 0) + (manage ? 2 : 0)}
+                    colSpan={4 + (viewPme ? 1 : 0) + (manage ? 2 : 0)}
                     className="px-4 py-10 text-center text-text-muted"
                   >
                     No participants added yet.

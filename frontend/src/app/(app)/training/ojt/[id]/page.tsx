@@ -37,6 +37,7 @@ function ParticipantTable({
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
             <tr>
+              <th className="px-4 py-3 font-medium w-12">No.</th>
               <th className="px-4 py-3 font-medium">Staff</th>
               <th className="px-4 py-3 font-medium">Rate Before OJT</th>
               <th className="px-4 py-3 font-medium">Rate After OJT</th>
@@ -45,8 +46,9 @@ function ParticipantTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map((p) => (
+            {rows.map((p, i) => (
               <tr key={p.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-text-muted">{i + 1}</td>
                 <td className="px-4 py-3 text-text-primary">
                   {p.user.staffName}
                   <span className="text-text-muted ml-1">({p.user.staffNo})</span>
@@ -87,7 +89,7 @@ function ParticipantTable({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-text-muted text-sm">
+                <td colSpan={6} className="px-4 py-6 text-center text-text-muted text-sm">
                   None
                 </td>
               </tr>
