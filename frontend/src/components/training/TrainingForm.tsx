@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { PROGRAM_LABELS, PLATFORM_LABELS, FUNCTION_LABELS } from "@/lib/labels";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -12,6 +13,8 @@ interface TrainingInitial {
   function?: string;
   venue?: string;
   hrdcClaimable?: boolean;
+  hrdcAllowance?: number | null;
+  hrdcGrantId?: string | null;
   startDate?: string;
   endDate?: string;
   startTime?: string;
@@ -55,6 +58,7 @@ export function TrainingForm({
   initial?: TrainingInitial;
   submitLabel: string;
 }) {
+  const [hrdc, setHrdc] = useState(initial?.hrdcClaimable ?? false);
   return (
     <form action={action} className="space-y-6 max-w-2xl">
       <div>
@@ -203,12 +207,43 @@ export function TrainingForm({
           <input
             type="checkbox"
             name="hrdcClaimable"
-            defaultChecked={initial?.hrdcClaimable}
+            checked={hrdc}
+            onChange={(e) => setHrdc(e.target.checked)}
             className="rounded border-border text-primary focus:ring-primary"
           />
           HRDC Claimable
         </label>
       </div>
+
+      {hrdc && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">
+              HRDC Allowance (RM) <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              name="hrdcAllowance"
+              defaultValue={initial?.hrdcAllowance ?? undefined}
+              required
+              className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">
+              HRDC Grant ID <span className="text-text-muted font-normal">(optional)</span>
+            </label>
+            <input
+              name="hrdcGrantId"
+              defaultValue={initial?.hrdcGrantId ?? ""}
+              placeholder="e.g. HRDC-2026-00123"
+              className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+        </div>
+      )}
 
       <SubmitButton label={submitLabel} />
     </form>

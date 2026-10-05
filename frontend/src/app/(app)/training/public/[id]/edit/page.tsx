@@ -35,6 +35,8 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
           function: training.function,
           venue: training.venue,
           hrdcClaimable: training.hrdcClaimable,
+          hrdcAllowance: training.hrdcAllowance,
+          hrdcGrantId: training.hrdcGrantId,
           startDate: training.startDate.toISOString().slice(0, 10),
           endDate: training.endDate.toISOString().slice(0, 10),
           startTime: training.startTime,

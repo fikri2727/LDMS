@@ -258,6 +258,8 @@ class Training(Base):
     function: Mapped[TrainingFunction] = mapped_column(pg_enum(TrainingFunction))
     venue: Mapped[str] = mapped_column(Text)
     hrdc_claimable: Mapped[bool] = mapped_column("hrdcClaimable", Boolean, default=False)
+    hrdc_allowance: Mapped[float | None] = mapped_column("hrdcAllowance", Float)  # RM, only when HRDC claimable
+    hrdc_grant_id: Mapped[str | None] = mapped_column("hrdcGrantId", Text)
     start_date: Mapped[datetime] = mapped_column("startDate", DateTime)
     end_date: Mapped[datetime] = mapped_column("endDate", DateTime)
     start_time: Mapped[str] = mapped_column("startTime", Text)

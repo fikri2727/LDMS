@@ -142,6 +142,20 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
           <p className="text-text-muted">HRDC Claimable</p>
           <p className="text-text-primary">{training.hrdcClaimable ? "Yes" : "No"}</p>
         </div>
+        {training.hrdcClaimable && (
+          <>
+            <div>
+              <p className="text-text-muted">HRDC Allowance</p>
+              <p className="text-text-primary">
+                {training.hrdcAllowance != null ? `RM ${training.hrdcAllowance.toFixed(2)}` : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-text-muted">HRDC Grant ID</p>
+              <p className="text-text-primary">{training.hrdcGrantId || "—"}</p>
+            </div>
+          </>
+        )}
       </div>
 
       {manage && qrDataUrl && checkinUrl && (

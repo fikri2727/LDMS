@@ -180,7 +180,7 @@ def test_org_update_delete_and_unassign_hod(admin_client, db, staff_user):
 def test_training_update_absent_remove(admin_client, client, db, admin, staff_user):
     tid = admin_client.post("/api/training/public", data=T_FORM).json()["id"]
     assert db.get(Training, tid).training_code.startswith("IN010626")  # INTX -> IN prefix, start date
-    r = admin_client.post(f"/api/training/public/{tid}", data={**T_FORM, "title": "renamed", "cost": "99.9", "hrdcClaimable": "on"})
+    r = admin_client.post(f"/api/training/public/{tid}", data={**T_FORM, "title": "renamed", "cost": "99.9", "hrdcClaimable": "on", "hrdcAllowance": "50"})
     assert r.status_code == 200
     t = db.get(Training, tid); db.refresh(t)
     assert (t.title, t.cost, t.hrdc_claimable) == ("RENAMED", 99.9, True)

@@ -8,7 +8,7 @@ from tests.conftest import login_as
 
 TRAINING_FORM = {
     "title": "test python training", "program": "EXT", "cost": "150.5", "platform": "PHYSICAL",
-    "function": "DIGITAL", "venue": "hq", "hrdcClaimable": "on", "startDate": "2026-03-02",
+    "function": "DIGITAL", "venue": "hq", "hrdcClaimable": "on", "hrdcAllowance": "1200", "startDate": "2026-03-02",
     "endDate": "2026-03-03", "startTime": "09:00", "endTime": "17:00", "trainer": "someone",
 }
 
@@ -158,3 +158,29 @@ def test_elearning_hours(admin_client):
     assert isinstance(rows, list)
     if rows:
         assert {"staffNo", "moduleTitle", "hours", "completedAt"} <= rows[0].keys()
+
+
+def test_training_hrdc_allowance_and_grant_id(admin_client, db):
+    form = {**TRAINING_FORM, "hrdcAllowance": "", "hrdcGrantId": ""}
+    r = admin_client.post("/api/training/public", data=form)
+    assert r.status_code == 400 and r.json()["detail"] == "Please enter the HRDC Allowance (RM)."
+    r = admin_client.post("/api/training/public", data={**form, "hrdcAllowance": "-5"})
+    assert r.status_code == 400 and "negative" in r.json()["detail"]
+
+    # Grant ID is optional
+    tid = admin_client.post("/api/training/public", data={**form, "hrdcAllowance": "1500.50"}).json()["id"]
+    t = db.get(Training, tid)
+    assert t.hrdc_allowance == 1500.5 and t.hrdc_grant_id is None
+
+    r = admin_client.post(f"/api/training/public/{tid}", data={**form, "hrdcAllowance": "800", "hrdcGrantId": " hrd-2026-01 "})
+    assert r.status_code == 200, r.text
+    db.refresh(t)
+    assert (t.hrdc_allowance, t.hrdc_grant_id) == (800, "HRD-2026-01")
+    assert admin_client.get(f"/api/training/public/{tid}/basic").json()["hrdcGrantId"] == "HRD-2026-01"
+
+    # not claimable -> both cleared
+    no_hrdc = {k: v for k, v in form.items() if k != "hrdcClaimable"}
+    r = admin_client.post(f"/api/training/public/{tid}", data={**no_hrdc, "hrdcAllowance": "800", "hrdcGrantId": "X"})
+    assert r.status_code == 200
+    db.refresh(t)
+    assert (t.hrdc_claimable, t.hrdc_allowance, t.hrdc_grant_id) == (False, None, None)

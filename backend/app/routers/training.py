@@ -70,6 +70,16 @@ def _read_training_fields(form) -> dict:
     start, end = fdate(form, "startDate"), fdate(form, "endDate")
     if start is None or end is None:
         raise bad("Start and end dates are required.")
+    # HRDC: allowance (RM) is required when claimable; the grant ID is optional. Both are cleared otherwise.
+    hrdc = fstr(form, "hrdcClaimable") == "on"
+    allowance = grant_id = None
+    if hrdc:
+        allowance = fnum(form, "hrdcAllowance")
+        if allowance is None:
+            raise bad("Please enter the HRDC Allowance (RM).")
+        if allowance < 0:
+            raise bad("HRDC Allowance cannot be negative.")
+        grant_id = fstr(form, "hrdcGrantId").strip().upper() or None
     return {
         "title": title,
         "program": _enum(TrainingProgram, program, "program"),
@@ -77,7 +87,9 @@ def _read_training_fields(form) -> dict:
         "platform": _enum(Platform, fstr(form, "platform"), "platform"),
         "function": _enum(TrainingFunction, fstr(form, "function"), "function"),
         "venue": venue,
-        "hrdc_claimable": fstr(form, "hrdcClaimable") == "on",
+        "hrdc_claimable": hrdc,
+        "hrdc_allowance": allowance,
+        "hrdc_grant_id": grant_id,
         "start_date": start,
         "end_date": end,
         "start_time": fstr(form, "startTime") or "09:00",

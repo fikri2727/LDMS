@@ -96,6 +96,8 @@ export interface Training {
   function: TrainingFunction;
   venue: string;
   hrdcClaimable: boolean;
+  hrdcAllowance: number | null;
+  hrdcGrantId: string | null;
   startDate: Date;
   endDate: Date;
   startTime: string;
