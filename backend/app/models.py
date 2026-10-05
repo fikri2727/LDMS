@@ -260,6 +260,7 @@ class Training(Base):
     hrdc_claimable: Mapped[bool] = mapped_column("hrdcClaimable", Boolean, default=False)
     hrdc_allowance: Mapped[float | None] = mapped_column("hrdcAllowance", Float)  # RM, only when HRDC claimable
     hrdc_grant_id: Mapped[str | None] = mapped_column("hrdcGrantId", Text)
+    training_provider: Mapped[str | None] = mapped_column("trainingProvider", Text)
     start_date: Mapped[datetime] = mapped_column("startDate", DateTime)
     end_date: Mapped[datetime] = mapped_column("endDate", DateTime)
     start_time: Mapped[str] = mapped_column("startTime", Text)

@@ -42,6 +42,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
           startTime: training.startTime,
           endTime: training.endTime,
           trainer: training.trainer,
+          trainingProvider: training.trainingProvider,
         }}
       />
     </div>

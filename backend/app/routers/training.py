@@ -95,6 +95,7 @@ def _read_training_fields(form) -> dict:
         "start_time": fstr(form, "startTime") or "09:00",
         "end_time": fstr(form, "endTime") or "17:00",
         "trainer": fstr(form, "trainer").strip().upper(),
+        "training_provider": fstr(form, "trainingProvider").strip().upper() or None,
     }
 
 

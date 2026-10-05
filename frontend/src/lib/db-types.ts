@@ -98,6 +98,7 @@ export interface Training {
   hrdcClaimable: boolean;
   hrdcAllowance: number | null;
   hrdcGrantId: string | null;
+  trainingProvider: string | null;
   startDate: Date;
   endDate: Date;
   startTime: string;

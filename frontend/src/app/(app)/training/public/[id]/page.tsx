@@ -135,6 +135,10 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
           <p className="text-text-primary">{training.trainer}</p>
         </div>
         <div>
+          <p className="text-text-muted">Training Provider</p>
+          <p className="text-text-primary">{training.trainingProvider || "—"}</p>
+        </div>
+        <div>
           <p className="text-text-muted">Cost</p>
           <p className="text-text-primary">RM {training.cost.toFixed(2)}</p>
         </div>

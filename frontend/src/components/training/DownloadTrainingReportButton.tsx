@@ -29,6 +29,7 @@ export interface PublicParticipantRow {
   hrdcClaimable: boolean;
   hrdcAllowance: number | null;
   hrdcGrantId: string | null;
+  trainingProvider: string | null;
   staffNo: string;
   staffName: string;
   department: string;
@@ -91,6 +92,7 @@ const PARTICIPANT_COLUMNS: { header: string; width: number }[] = [
   { header: "HRDC Claimable", width: 10 },
   { header: "HRDC Allowance (RM)", width: 14 },
   { header: "HRDC Grant ID", width: 18 },
+  { header: "Training Provider", width: 22 },
   { header: "Staff No", width: 12 },
   { header: "Staff Name", width: 24 },
   { header: "Department", width: 20 },
@@ -171,6 +173,7 @@ export function DownloadTrainingReportButton({
           r.hrdcClaimable ? "Yes" : "No",
           r.hrdcAllowance ?? "—",
           r.hrdcGrantId || "—",
+          r.trainingProvider || "—",
           r.staffNo,
           r.staffName,
           r.department,

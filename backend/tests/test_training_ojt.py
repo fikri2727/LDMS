@@ -184,3 +184,14 @@ def test_training_hrdc_allowance_and_grant_id(admin_client, db):
     assert r.status_code == 200
     db.refresh(t)
     assert (t.hrdc_claimable, t.hrdc_allowance, t.hrdc_grant_id) == (False, None, None)
+
+
+def test_training_provider(admin_client, db):
+    tid = admin_client.post("/api/training/public", data={**TRAINING_FORM, "trainingProvider": " niosh bangi "}).json()["id"]
+    t = db.get(Training, tid)
+    assert t.training_provider == "NIOSH BANGI"
+    assert admin_client.get(f"/api/training/public/{tid}/basic").json()["trainingProvider"] == "NIOSH BANGI"
+    # optional: blank clears it
+    assert admin_client.post(f"/api/training/public/{tid}", data={**TRAINING_FORM, "trainingProvider": ""}).status_code == 200
+    db.refresh(t)
+    assert t.training_provider is None

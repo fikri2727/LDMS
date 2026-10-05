@@ -20,6 +20,7 @@ interface TrainingInitial {
   startTime?: string;
   endTime?: string;
   trainer?: string;
+  trainingProvider?: string | null;
 }
 
 function SubmitButton({ label }: { label: string }) {
@@ -126,6 +127,18 @@ export function TrainingForm({
             ))}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-text-secondary mb-1">
+          Training Provider <span className="text-text-muted font-normal">(optional)</span>
+        </label>
+        <input
+          name="trainingProvider"
+          defaultValue={initial?.trainingProvider ?? ""}
+          placeholder="e.g. NIOSH, SHRDC"
+          className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">

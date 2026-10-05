@@ -92,6 +92,7 @@ export default async function PublicTrainingListPage() {
         hrdcClaimable: t.hrdcClaimable,
         hrdcAllowance: t.hrdcAllowance,
         hrdcGrantId: t.hrdcGrantId,
+        trainingProvider: t.trainingProvider,
         staffNo: p.user.staffNo,
         staffName: p.user.staffName,
         department: p.user.department?.name ?? "—",
