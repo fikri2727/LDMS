@@ -53,6 +53,7 @@ export default async function PublicTrainingListPage() {
         startTime: t.startTime,
         endTime: t.endTime,
         hrdcClaimable: t.hrdcClaimable,
+        hrdcGrantId: t.hrdcGrantId,
         platform: t.platform,
         function: t.function,
         cost: t.cost,

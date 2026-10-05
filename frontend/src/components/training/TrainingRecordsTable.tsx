@@ -55,6 +55,7 @@ export interface TrainingRow {
   startTime: string;
   endTime: string;
   hrdcClaimable: boolean;
+  hrdcGrantId: string | null;
   platform: string;
   function: string;
   cost: number;
@@ -88,7 +89,8 @@ export function TrainingRecordsTable({ rows }: { rows: TrainingRow[] }) {
       if (appliedEnd && r.endDate > appliedEnd) return false;
       if (search) {
         const q = search.toLowerCase();
-        if (!r.title.toLowerCase().includes(q) && !r.trainingCode.toLowerCase().includes(q)) return false;
+        const haystack = [r.title, r.trainingCode, r.hrdcGrantId ?? ""].join(" ").toLowerCase();
+        if (!haystack.includes(q)) return false;
       }
       return true;
     });
@@ -187,7 +189,7 @@ export function TrainingRecordsTable({ rows }: { rows: TrainingRow[] }) {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Title or code..."
+            placeholder="Title, code or grant ID..."
             className="rounded-xl border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
@@ -238,6 +240,7 @@ export function TrainingRecordsTable({ rows }: { rows: TrainingRow[] }) {
                     <Link href={`/training/public/${r.id}`} className="text-primary-dark font-medium hover:underline">
                       {r.title}
                     </Link>
+                    {r.hrdcGrantId && <p className="mt-0.5 text-xs text-text-muted">({r.hrdcGrantId})</p>}
                   </td>
                   <td className="px-3 py-2.5 text-text-secondary">{PROGRAM_LABELS[r.program]}</td>
                   <td className="px-3 py-2.5 text-text-secondary">{format(new Date(r.startDate), "dd/MM/yyyy")}</td>
