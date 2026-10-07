@@ -188,7 +188,7 @@ export default async function PublicTrainingListPage() {
         <p className="text-text-muted text-sm">{trainings.length} training session(s)</p>
       </div>
 
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      <div className="bg-surface rounded-2xl border border-border overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
             <tr>

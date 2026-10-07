@@ -60,7 +60,7 @@ export default async function StaffListPage({
           <h1 className="text-2xl font-semibold text-text-primary">Staff List</h1>
           <p className="text-text-muted text-sm mt-1">{staff.length} staff record(s)</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <DownloadStaffReportButton staffRows={staffRows} />
           <Link
             href="/staff/upload"

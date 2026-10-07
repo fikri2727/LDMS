@@ -65,7 +65,7 @@ export function ParticipantsModal({
           {participants.length === 0 ? (
             <p className="text-sm text-text-muted">No participants added yet.</p>
           ) : (
-            <div className="rounded-xl border border-border overflow-hidden">
+            <div className="rounded-xl border border-border overflow-x-auto">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 text-left text-text-muted text-[10px] uppercase tracking-wide">
                   <tr>

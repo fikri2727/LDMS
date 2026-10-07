@@ -33,7 +33,7 @@ function ParticipantTable({
   return (
     <div className="mb-6">
       <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">{title}</h4>
-      <div className="bg-surface rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+      <div className="bg-surface rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
             <tr>
@@ -188,7 +188,7 @@ export default async function OjtDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {manage && qrDataUrl && checkinUrl && (
-        <div className="mb-8 rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] p-5 flex items-center gap-5">
+        <div className="mb-8 rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] p-5 flex flex-col sm:flex-row sm:items-center gap-5">
           {/* eslint-disable-next-line @next/next/no-img-element -- data: URL, next/image doesn't support this */}
           <img
             src={qrDataUrl}
@@ -204,7 +204,7 @@ export default async function OjtDetailPage({ params }: { params: Promise<{ id: 
             <p className="text-sm text-text-secondary mb-3">
               Staff scan this, enter their Staff ID, and go straight to their OJT evaluation — no login needed.
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <a
                 href={qrDataUrl}
                 download={`checkin-ojt-qr-${ojt.trainingCode}.png`}

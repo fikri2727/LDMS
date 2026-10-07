@@ -163,7 +163,7 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
       </div>
 
       {manage && qrDataUrl && checkinUrl && (
-        <div className="mb-8 rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] p-5 flex items-center gap-5">
+        <div className="mb-8 rounded-2xl border border-border bg-surface shadow-[var(--shadow-card)] p-5 flex flex-col sm:flex-row sm:items-center gap-5">
           {/* eslint-disable-next-line @next/next/no-img-element -- data: URL, next/image doesn't support this */}
           <img
             src={qrDataUrl}
@@ -179,7 +179,7 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
             <p className="text-sm text-text-secondary mb-3">
               Staff scan this, enter their Staff ID, and go straight to their evaluation form — no login needed.
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <a
                 href={qrDataUrl}
                 download={`checkin-qr-${training.trainingCode}.png`}
@@ -219,7 +219,7 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
           {manage && <AddParticipantForm staffOptions={staffOptions} onAdd={addParticipant.bind(null, training.id)} />}
         </div>
 
-        <div className="bg-surface rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-border shadow-[var(--shadow-card)] overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
               <tr>

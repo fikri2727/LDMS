@@ -195,7 +195,7 @@ export function OjtRecordsTable({ rows }: { rows: OjtRow[] }) {
         </div>
       </div>
 
-      <div className="bg-surface rounded-2xl border border-border">
+      <div className="bg-surface rounded-2xl border border-border overflow-x-auto">
         <table className="w-full text-xs table-fixed">
           <thead className="bg-gray-50 text-left text-text-muted text-[11px] uppercase tracking-wide">
             <tr>

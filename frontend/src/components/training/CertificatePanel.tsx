@@ -30,9 +30,9 @@ export function CertificatePanel({
   return (
     <div className="space-y-3">
       {certificates.map((c) => (
-        <div key={c.id} className="flex items-center justify-between rounded-xl border border-border px-3 py-2">
+        <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2">
           <div>
-            <p className="text-sm text-text-primary">{c.fileName}</p>
+            <p className="text-sm text-text-primary break-all">{c.fileName}</p>
             <p className="text-xs text-text-muted">
               Uploaded {format(c.uploadedAt, "d MMM yyyy")} by {c.uploadedBy?.staffName ?? "unknown"}
             </p>
@@ -72,13 +72,13 @@ export function CertificatePanel({
               formRef.current?.reset();
             })
           }
-          className="flex items-center gap-2 pt-1"
+          className="flex flex-wrap items-center gap-2 pt-1"
         >
           <input
             type="file"
             name="file"
             required
-            className="text-sm text-text-secondary file:mr-3 file:rounded-xl file:border-0 file:bg-primary/10 file:text-primary-dark file:px-3 file:py-1.5 file:text-sm"
+            className="min-w-0 max-w-full text-sm text-text-secondary file:mr-3 file:rounded-xl file:border-0 file:bg-primary/10 file:text-primary-dark file:px-3 file:py-1.5 file:text-sm"
           />
           <button
             type="submit"

@@ -258,7 +258,7 @@ export default async function TnaIndexPage({
           <TnaFilters departments={departments} />
         </div>
         <p className="text-text-secondary text-sm mb-3">{rows.length} department(s)</p>
-        <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-border overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
               <tr>

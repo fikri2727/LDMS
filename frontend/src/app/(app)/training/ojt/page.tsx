@@ -54,7 +54,7 @@ export default async function OjtListPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <p className="text-text-muted text-sm">{ojts.length} OJT record(s)</p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <a
               href="/ojt-upload-template.xlsx"
               download
@@ -93,7 +93,7 @@ export default async function OjtListPage() {
         </Link>
       </div>
 
-      <div className="bg-surface rounded-2xl border border-border overflow-hidden">
+      <div className="bg-surface rounded-2xl border border-border overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
             <tr>

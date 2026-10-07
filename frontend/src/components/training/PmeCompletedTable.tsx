@@ -57,7 +57,7 @@ export function PmeCompletedTable({
   }
 
   return (
-    <div className="bg-surface rounded-2xl border border-border overflow-hidden mb-8">
+    <div className="bg-surface rounded-2xl border border-border overflow-x-auto mb-8">
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
           <tr>
