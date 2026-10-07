@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { PROGRAM_LABELS, PLATFORM_LABELS, FUNCTION_LABELS } from "@/lib/labels";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
+import type { StaffOption } from "@/lib/db-types";
 
 interface TrainingInitial {
   title?: string;
@@ -54,12 +56,26 @@ export function TrainingForm({
   action,
   initial,
   submitLabel,
+  staffOptions = [],
 }: {
   action: (formData: FormData) => void;
   initial?: TrainingInitial;
   submitLabel: string;
+  /** Active staff - the Trainer list for "Inhouse (Internal Trainer)". */
+  staffOptions?: StaffOption[];
 }) {
   const [hrdc, setHrdc] = useState(initial?.hrdcClaimable ?? false);
+  const [program, setProgram] = useState(initial?.program ?? "");
+  const [trainer, setTrainer] = useState(initial?.trainer ?? "");
+  // Internal trainer = a TAMCO staff member, picked from the list. The name is stored (as before),
+  // so "My Top Trainers" keeps grouping by name. A saved name that's no longer in the list stays selectable.
+  const internalTrainer = program === "INTI";
+  const trainerOptions = useMemo(() => {
+    const opts = staffOptions.map((s) => ({ value: s.staffName, label: `${s.staffName} (${s.staffNo})` }));
+    const saved = initial?.trainer;
+    if (saved && !opts.some((o) => o.value === saved)) opts.unshift({ value: saved, label: saved });
+    return opts;
+  }, [staffOptions, initial?.trainer]);
   return (
     <form action={action} className="space-y-6 max-w-2xl">
       <div>
@@ -77,7 +93,8 @@ export function TrainingForm({
           <label className="block text-sm font-medium text-text-secondary mb-1">Program</label>
           <select
             name="program"
-            defaultValue={initial?.program ?? ""}
+            value={program}
+            onChange={(e) => setProgram(e.target.value)}
             required
             className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
           >
@@ -153,12 +170,35 @@ export function TrainingForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">Trainer</label>
-          <input
-            name="trainer"
-            defaultValue={initial?.trainer}
-            required
-            className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-          />
+          {internalTrainer ? (
+            <div className="relative">
+              <SearchableSelect
+                name="trainer"
+                options={trainerOptions}
+                value={trainer}
+                onChange={setTrainer}
+                placeholder="Search staff by name or no..."
+                emptyLabel="— Select staff —"
+              />
+              {/* lets the browser's "please fill in" check cover the staff picker too */}
+              <input
+                tabIndex={-1}
+                aria-hidden
+                required
+                value={trainer}
+                onChange={() => {}}
+                className="absolute inset-x-0 bottom-0 h-px opacity-0 pointer-events-none"
+              />
+            </div>
+          ) : (
+            <input
+              name="trainer"
+              value={trainer}
+              onChange={(e) => setTrainer(e.target.value)}
+              required
+              className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          )}
         </div>
       </div>
 

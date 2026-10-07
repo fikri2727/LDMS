@@ -3,12 +3,15 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requireSession } from "@/lib/guard";
 import { canManageTraining } from "@/lib/rbac";
+import { api } from "@/lib/api";
+import type { StaffOption } from "@/lib/db-types";
 import { TrainingForm } from "@/components/training/TrainingForm";
 import { createTraining } from "@/app/(app)/training/public/actions";
 
 export default async function NewTrainingPage() {
   const session = await requireSession();
   if (!canManageTraining(session)) redirect("/training/public");
+  const { supervisorOptions: staffOptions } = await api.get<{ supervisorOptions: StaffOption[] }>("/api/staff/form-options");
 
   return (
     <div>
@@ -19,7 +22,7 @@ export default async function NewTrainingPage() {
         <ArrowLeft size={15} /> Back to Training Records
       </Link>
       <h2 className="text-xl font-semibold text-text-primary mb-6">Add Public / Inhouse Training</h2>
-      <TrainingForm action={createTraining} submitLabel="Create Training" />
+      <TrainingForm action={createTraining} submitLabel="Create Training" staffOptions={staffOptions} />
     </div>
   );
 }

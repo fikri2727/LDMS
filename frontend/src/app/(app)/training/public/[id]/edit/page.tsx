@@ -6,14 +6,17 @@ import { canManageTraining } from "@/lib/rbac";
 import { api } from "@/lib/api";
 import { TrainingForm } from "@/components/training/TrainingForm";
 import { updateTraining } from "@/app/(app)/training/public/actions";
-import type { Training } from "@/lib/db-types";
+import type { StaffOption, Training } from "@/lib/db-types";
 
 export default async function EditTrainingPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   if (!canManageTraining(session)) redirect("/training/public");
 
   const { id } = await params;
-  const training = await api.get<Training>(`/api/training/public/${Number(id)}/basic`, undefined, { on403: "/training/public" });
+  const [training, { supervisorOptions: staffOptions }] = await Promise.all([
+    api.get<Training>(`/api/training/public/${Number(id)}/basic`, undefined, { on403: "/training/public" }),
+    api.get<{ supervisorOptions: StaffOption[] }>("/api/staff/form-options"),
+  ]);
 
   return (
     <div>
@@ -27,6 +30,7 @@ export default async function EditTrainingPage({ params }: { params: Promise<{ i
       <TrainingForm
         action={updateTraining.bind(null, training.id)}
         submitLabel="Save Changes"
+        staffOptions={staffOptions}
         initial={{
           title: training.title,
           program: training.program,
