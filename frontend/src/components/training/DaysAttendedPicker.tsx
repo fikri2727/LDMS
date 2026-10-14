@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { CalendarDays } from "lucide-react";
 import { attendedDayNumbers, attendedDaysLabel, dayDate } from "@/lib/attendance";
 
@@ -23,6 +24,9 @@ export function DaysAttendedPicker({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const box = useRef<HTMLDivElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  // The popup is drawn on <body> (not inside the table) so the table's scroll box can't cut it off.
+  const [pos, setPos] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
   const start = new Date(startDate);
   const partial = attendedDayNumbers(attendedDays, totalDays).length < totalDays;
   const label = attendedDaysLabel(attendedDays, totalDays);
@@ -30,11 +34,41 @@ export function DaysAttendedPicker({
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (box.current?.contains(t) || popup.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const closeNow = () => setOpen(false); // window resized: the button moved
+    const closeOnScroll = (e: Event) => {
+      // Page or table scrolled (the button moved) - but scrolling the day list inside the popup is fine.
+      if (popup.current?.contains(e.target as Node)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    window.addEventListener("resize", closeNow);
+    window.addEventListener("scroll", closeOnScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("resize", closeNow);
+      window.removeEventListener("scroll", closeOnScroll, true);
+    };
   }, [open]);
+
+  function place() {
+    const rect = box.current?.getBoundingClientRect();
+    if (!rect) return;
+    // The page is scaled down on smaller laptops (html { zoom }, see globals.css). The button's
+    // position is measured in screen pixels but the popup is placed in page pixels, so convert.
+    const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const r = { left: rect.left / zoom, top: rect.top / zoom, bottom: rect.bottom / zoom };
+    const vw = window.innerWidth / zoom;
+    const vh = window.innerHeight / zoom;
+    const width = 192; // w-48
+    const left = Math.max(8, Math.min(r.left, vw - width - 8));
+    const needed = 96 + Math.min(totalDays, 7) * 28; // header + day rows (scrolls after 7) + buttons
+    // Open upwards when there isn't room below (e.g. the last rows, or above the phone tab bar).
+    setPos(vh - r.bottom < needed + 90 && r.top > needed ? { left, bottom: vh - r.top + 4 } : { left, top: r.bottom + 4 });
+  }
 
   if (!canEdit) {
     return <span className={partial ? "text-amber-700" : "text-text-secondary"}>{label}</span>;
@@ -60,6 +94,7 @@ export function DaysAttendedPicker({
         onClick={() => {
           setSelected(attendedDayNumbers(attendedDays, totalDays));
           setError(null);
+          if (!open) place();
           setOpen((o) => !o);
         }}
         title="Change which days this participant attended"
@@ -69,8 +104,12 @@ export function DaysAttendedPicker({
       >
         <CalendarDays size={13} /> {label}
       </button>
-      {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-48 rounded-xl border border-border bg-surface p-3 shadow-lg">
+      {open && pos && createPortal(
+        <div
+          ref={popup}
+          style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom }}
+          className="z-[70] w-48 rounded-xl border border-border bg-surface p-3 shadow-lg"
+        >
           <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Days attended</p>
           <div className="space-y-1.5 max-h-56 overflow-y-auto">
             {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => (
@@ -103,7 +142,8 @@ export function DaysAttendedPicker({
               {pending ? "Saving..." : "Save"}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
