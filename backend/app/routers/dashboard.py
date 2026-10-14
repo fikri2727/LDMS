@@ -27,6 +27,7 @@ from app.models import (
 )
 from app.rbac import has_org_wide_view
 from app.serialize import value
+from app.services.attendance import attended_day_count, participant_hours
 from app.services.elearning import module_hours_map
 from app.services.util import compute_days, compute_hours, js_round, now_utc
 
@@ -86,8 +87,19 @@ def completed(parts) -> int:
 
 
 def training_man_hours(t: Training) -> float:
-    """Session length × participants who actually completed it (matches Training Records' Man Hours)."""
-    return session_hours(t) * completed(t.participations)
+    """Hours actually attended by everyone who completed it (matches Training Records' Man Hours)."""
+    return sum(participant_hours(p, t) for p in t.participations if p.attendance == AttendanceStatus.COMPLETED)
+
+
+def user_training_hours(t: Training, user_id: int) -> float:
+    """One staff member's hours on this training - only the days they attended."""
+    p = next((p for p in t.participations if p.user_id == user_id), None)
+    return participant_hours(p, t) if p else session_hours(t)
+
+
+def user_training_days(t: Training, user_id: int) -> int:
+    p = next((p for p in t.participations if p.user_id == user_id), None)
+    return attended_day_count(p, t) if p else compute_days(t.start_date, t.end_date)
 
 
 def ojt_man_hours(o: Ojt) -> float:
@@ -112,8 +124,10 @@ def overview(db: Session, d: Data, user_id: int | None) -> dict:
             if p.attendance == AttendanceStatus.COMPLETED and p.user.status == StaffStatus.ACTIVE:
                 users.add(p.user_id)
 
-    total_day = sum(compute_days(t.start_date, t.end_date) for t in trainings) + sum(o.total_day for o in ojts)
-    total_hour = sum(session_hours(t) if user_id else training_man_hours(t) for t in trainings) + sum(
+    total_day = sum(
+        user_training_days(t, user_id) if user_id else compute_days(t.start_date, t.end_date) for t in trainings
+    ) + sum(o.total_day for o in ojts)
+    total_hour = sum(user_training_hours(t, user_id) if user_id else training_man_hours(t) for t in trainings) + sum(
         o.total_hour if user_id else ojt_man_hours(o) for o in ojts
     )
     return {
@@ -126,7 +140,7 @@ def overview(db: Session, d: Data, user_id: int | None) -> dict:
 
 def public_vs_ojt(db: Session, d: Data, user_id: int | None) -> list[dict]:
     trainings, ojts = d.mine(user_id)
-    public = sum(session_hours(t) if user_id else training_man_hours(t) for t in trainings)
+    public = sum(user_training_hours(t, user_id) if user_id else training_man_hours(t) for t in trainings)
     ojt = sum(o.total_day * o.total_hour if user_id else ojt_man_hours(o) for o in ojts)
     el_hours, _ = elearning_totals(db, d.elearning(user_id))
     return [
@@ -147,7 +161,7 @@ def top_trainers(d: Data, user_id: int | None) -> list[dict]:
     trainings, ojts = d.mine(user_id)
     hours: dict[str, float] = {}
     for t in trainings:
-        hours[t.trainer] = hours.get(t.trainer, 0) + session_hours(t)
+        hours[t.trainer] = hours.get(t.trainer, 0) + (user_training_hours(t, user_id) if user_id else session_hours(t))
     for o in ojts:
         hours[o.trainer_name] = hours.get(o.trainer_name, 0) + o.total_day * o.total_hour
     rows = [{"trainer": k, "totalHour": r2(v)} for k, v in hours.items()]
@@ -158,7 +172,7 @@ def monthly_hours_for_user(db: Session, d: Data, user_id: int) -> list[dict]:
     trainings, ojts = d.mine(user_id)
     totals = [0.0] * 12
     for t in trainings:
-        totals[t.start_date.month - 1] += session_hours(t)
+        totals[t.start_date.month - 1] += user_training_hours(t, user_id)
     for o in ojts:
         totals[o.start_date.month - 1] += o.total_day * o.total_hour
     completions = d.elearning(user_id)
@@ -171,21 +185,21 @@ def monthly_hours_for_user(db: Session, d: Data, user_id: int) -> list[dict]:
 def department_breakdown(db: Session, d: Data, department_id: int | None = None) -> list[dict]:
     man_hours: dict[int, float] = {}
 
-    def add(parts, day_hour: float, per_man: bool):
+    def add(parts, hours_of, per_man: bool):
         for p in parts:
             if p.attendance != AttendanceStatus.COMPLETED or p.user.status != StaffStatus.ACTIVE:
                 continue
             if department_id and p.user.department_id != department_id:
                 continue
             if p.user.department_id:
-                man_hours[p.user.department_id] = man_hours.get(p.user.department_id, 0) + day_hour * (
+                man_hours[p.user.department_id] = man_hours.get(p.user.department_id, 0) + hours_of(p) * (
                     p.total_man if per_man else 1
                 )
 
     for t in d.trainings:
-        add(t.participations, session_hours(t), False)
+        add(t.participations, lambda p, t=t: participant_hours(p, t), False)
     for o in d.ojts:
-        add(o.participants, o.total_day * o.total_hour, True)
+        add(o.participants, lambda p, o=o: o.total_day * o.total_hour, True)
 
     q = select(Department)
     if department_id:
@@ -256,7 +270,7 @@ def recent_records(db: Session, user_id: int, limit: int = 4) -> list[dict]:
             "title": p.training.title,
             "_date": p.training.start_date,
             "status": p.attendance.value,
-            "hours": session_hours(p.training),
+            "hours": participant_hours(p),
             "href": f"/training/public/{p.training_id}",
         }
         for p in parts

@@ -28,6 +28,7 @@ from app.models import (
 )
 from app.rbac import can_evaluate_on_behalf, can_manage_training
 from app.serialize import ser
+from app.services.attendance import training_days
 from app.services.elearning import module_hours_map
 from app.services.survey import apply_survey_answers
 from app.services.uploads import delete_upload, file_response, save_upload
@@ -328,6 +329,24 @@ def mark_absent(training_id: int, participation_id: int, db: DB, _: TrainingAdmi
     _get_participation(db, training_id, participation_id).attendance = AttendanceStatus.ABSENT
     db.commit()
     return {"ok": True}
+
+
+@router.post("/public/{training_id}/participants/{participation_id}/days")
+def set_attended_days(training_id: int, participation_id: int, form: Form, db: DB, _: TrainingAdmin):
+    """Multi-day trainings: which days this participant attended (form field "days", repeated)."""
+    p = _get_participation(db, training_id, participation_id)
+    total = training_days(p.training)
+    try:
+        days = sorted({int(d) for d in form.getlist("days")})
+    except ValueError:
+        raise bad("Invalid day.")
+    if not days:
+        raise bad("Tick at least one day. If they didn't attend at all, mark them Absent instead.")
+    if days[0] < 1 or days[-1] > total:
+        raise bad(f"This training only has {total} day(s).")
+    p.attended_days = None if len(days) == total else days  # None = all days
+    db.commit()
+    return {"attendedDays": p.attended_days}
 
 
 @router.post("/public/{training_id}/participants/{participation_id}/survey")

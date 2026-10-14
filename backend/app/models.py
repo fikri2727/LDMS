@@ -12,6 +12,7 @@ import enum
 from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, Text, func
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -294,6 +295,8 @@ class Participation(Base):
     comment_suggestions: Mapped[str | None] = mapped_column("commentSuggestions", Text)
     # Set when an admin filled in the survey on the participant's behalf (audit only).
     keyed_in_by_id: Mapped[int | None] = mapped_column("keyedInById", ForeignKey("User.id", ondelete="SET NULL"))
+    # Multi-day trainings: day numbers attended (1 = start date). None = every day. See services/attendance.py
+    attended_days: Mapped[list[int] | None] = mapped_column("attendedDays", ARRAY(Integer))
 
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()

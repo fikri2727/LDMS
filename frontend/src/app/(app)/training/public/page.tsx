@@ -4,6 +4,7 @@ import { canManageTraining } from "@/lib/rbac";
 import { api } from "@/lib/api";
 import { PROGRAM_LABELS } from "@/lib/labels";
 import { computeDays, computeHours } from "@/lib/training-code";
+import { attendedDayCount, attendedDaysLabel } from "@/lib/attendance";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
 import { TrainingRecordsTable, type TrainingRow } from "@/components/training/TrainingRecordsTable";
@@ -59,7 +60,13 @@ export default async function PublicTrainingListPage() {
         cost: t.cost,
         totalDays,
         totalHours,
-        totalManHours: Math.round(totalDays * totalHours * comp * 100) / 100,
+        // Only the days each completed participant actually attended (multi-day trainings).
+        totalManHours:
+          Math.round(
+            t.participations
+              .filter((p) => p.attendance === "COMPLETED")
+              .reduce((sum, p) => sum + attendedDayCount(p.attendedDays, totalDays) * totalHours, 0) * 100
+          ) / 100,
         par,
         comp,
         pend,
@@ -98,6 +105,9 @@ export default async function PublicTrainingListPage() {
         department: p.user.department?.name ?? "—",
         designation: p.user.designation,
         attendance: p.attendance,
+        daysAttended: attendedDaysLabel(p.attendedDays, computeDays(t.startDate, t.endDate)),
+        hoursAttended:
+          attendedDayCount(p.attendedDays, computeDays(t.startDate, t.endDate)) * computeHours(t.startTime, t.endTime),
         courseRelevance: p.courseRelevance,
         practicalExercises: p.practicalExercises,
         sufficientTime: p.sufficientTime,

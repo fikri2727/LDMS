@@ -6,6 +6,7 @@ import { canManageTraining } from "@/lib/rbac";
 import { api } from "@/lib/api";
 import { PROGRAM_LABELS } from "@/lib/labels";
 import { computeDays, computeHours } from "@/lib/training-code";
+import { attendedDayCount } from "@/lib/attendance";
 import { MyTrainingTable, type MyTrainingRow } from "@/components/training/MyTrainingTable";
 import { MyTrainingStats } from "@/components/training/MyTrainingStats";
 import type { Ojt, ParticipateOjt, Participation, Training } from "@/lib/db-types";
@@ -78,7 +79,8 @@ export default async function TrainingIndexPage() {
         startDate: t.startDate.toISOString(),
         endDate: t.endDate.toISOString(),
         hoursPerDay,
-        totalHours: computeDays(t.startDate, t.endDate) * hoursPerDay,
+        // Only the days this staff member attended (multi-day trainings).
+        totalHours: attendedDayCount(participation?.attendedDays, computeDays(t.startDate, t.endDate)) * hoursPerDay,
         status: participation?.attendance ?? "PENDING",
         evaluateHref:
           participation && participation.attendance === "PENDING"

@@ -123,6 +123,8 @@ export interface Participation {
   actionPlan: string | null;
   commentSuggestions: string | null;
   keyedInById: number | null;
+  /** Multi-day trainings: day numbers attended (1 = start date); null = all days. */
+  attendedDays: number[] | null;
   createdAt: Date;
   updatedAt: Date;
 }

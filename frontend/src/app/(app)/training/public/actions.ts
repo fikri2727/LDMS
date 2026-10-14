@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 
 export async function createTraining(formData: FormData) {
   const { id } = await api.post<{ id: number }>("/api/training/public", formData);
@@ -49,6 +49,24 @@ export async function submitSurveyOnBehalf(trainingId: number, participationId: 
   await api.post(`/api/training/public/${trainingId}/participants/${participationId}/survey`, formData);
   revalidatePath(`/training/public/${trainingId}`);
   redirect(`/training/public/${trainingId}`);
+}
+
+/** Multi-day training: which days a participant attended. */
+export async function setAttendedDays(
+  trainingId: number,
+  participationId: number,
+  days: number[]
+): Promise<{ error: string } | void> {
+  const form = new FormData();
+  for (const d of days) form.append("days", String(d));
+  try {
+    await api.post(`/api/training/public/${trainingId}/participants/${participationId}/days`, form);
+  } catch (e) {
+    if (e instanceof ApiError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/training/public/${trainingId}`);
+  revalidatePath("/training/public");
 }
 
 export async function uploadCertificate(trainingId: number, formData: FormData) {

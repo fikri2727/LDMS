@@ -17,10 +17,13 @@ import { AddParticipantForm } from "@/components/training/AddParticipantForm";
 import { ParticipantActionsWrapper } from "@/components/training/ParticipantActionsWrapper";
 import { CertificatePanel } from "@/components/training/CertificatePanel";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
+import { DaysAttendedPicker } from "@/components/training/DaysAttendedPicker";
+import { computeDays } from "@/lib/training-code";
 import {
   addParticipant,
   removeParticipant,
   markAbsent,
+  setAttendedDays,
   uploadCertificate,
   deleteCertificate,
 } from "@/app/(app)/training/public/actions";
@@ -55,6 +58,9 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
   );
 
   const manage = canManageTraining(session);
+  // Multi-day trainings get a "Days Attended" column (some staff come on only some of the days).
+  const totalDays = computeDays(training.startDate, training.endDate);
+  const multiDay = totalDays > 1;
   const viewPme = canViewAllPme(session);
   const onBehalf = canEvaluateOnBehalf(session);
   const backHref = manage ? "/training/public" : "/training";
@@ -227,6 +233,7 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
                 <th className="px-4 py-3 font-medium">Staff</th>
                 <th className="px-4 py-3 font-medium">Department</th>
                 <th className="px-4 py-3 font-medium">Attendance</th>
+                {multiDay && <th className="px-4 py-3 font-medium">Days Attended</th>}
                 {manage && <th className="px-4 py-3 font-medium">Evaluation</th>}
                 {viewPme && <th className="px-4 py-3 font-medium">PME</th>}
                 {manage && <th className="px-4 py-3 font-medium text-right">Actions</th>}
@@ -244,6 +251,21 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
                   <td className="px-4 py-3">
                     <StatusBadge attendance={p.attendance} />
                   </td>
+                  {multiDay && (
+                    <td className="px-4 py-3">
+                      {p.attendance === "ABSENT" ? (
+                        <span className="text-text-muted text-xs">—</span>
+                      ) : (
+                        <DaysAttendedPicker
+                          attendedDays={p.attendedDays}
+                          totalDays={totalDays}
+                          startDate={training.startDate.toISOString()}
+                          canEdit={manage}
+                          onSave={setAttendedDays.bind(null, training.id, p.id)}
+                        />
+                      )}
+                    </td>
+                  )}
                   {manage && (
                     <td className="px-4 py-3 text-text-secondary">
                       {p.attendance === "COMPLETED" ? (
@@ -293,7 +315,7 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
               {visibleParticipations.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4 + (viewPme ? 1 : 0) + (manage ? 2 : 0)}
+                    colSpan={4 + (multiDay ? 1 : 0) + (viewPme ? 1 : 0) + (manage ? 2 : 0)}
                     className="px-4 py-10 text-center text-text-muted"
                   >
                     No participants added yet.

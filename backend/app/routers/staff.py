@@ -29,10 +29,11 @@ from app.models import (
 from app.rbac import can_manage_staff
 from app.security import DEFAULT_STAFF_PASSWORD, hash_password
 from app.serialize import ser, value
+from app.services.attendance import participant_hours
 from app.services.elearning import module_hours_map
 from app.services.org import active_staff_options, division_tree, sync_department_hod
 from app.services.excel import parse_staff_excel
-from app.services.util import compute_days, compute_hours, now_utc
+from app.services.util import now_utc
 
 router = APIRouter(prefix="/api/staff", tags=["staff"])
 
@@ -181,7 +182,7 @@ def training_record(staff_id: int, db: DB, _: StaffAdmin):
                 "endDate": t.end_date,
                 "venue": t.venue,
                 "status": p.attendance.value,
-                "totalHours": compute_days(t.start_date, t.end_date) * compute_hours(t.start_time, t.end_time),
+                "totalHours": participant_hours(p, t),
             }
         )
     for p in ojt_parts:
