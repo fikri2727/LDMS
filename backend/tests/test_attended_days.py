@@ -69,3 +69,20 @@ def test_hours_count_only_attended_days(client, db, admin, staff_user):
     assert round(org_before - org_hours(), 2) == 8
     mine_after, days_after = my_public_hours()
     assert round(mine_before - mine_after, 2) == 8 and days_before - days_after == 1
+
+
+def test_absence_remark(client, db, admin, staff_user):
+    login_as(client, admin)
+    tid = client.post("/api/training/public", data=TWO_DAY).json()["id"]
+    client.post(f"/api/training/public/{tid}/participants", data={"userId": str(staff_user.id)})
+    pid = client.get(f"/api/training/public/{tid}").json()["training"]["participations"][0]["id"]
+    client.post(f"/api/training/public/{tid}/participants/{pid}/absent")
+
+    url = f"/api/training/public/{tid}/participants/{pid}/remark"
+    assert client.post(url, data={"remark": "  MC (sick leave)  "}).json() == {"remark": "MC (sick leave)"}
+    assert client.get(f"/api/training/public/{tid}").json()["training"]["participations"][0]["remark"] == "MC (sick leave)"
+    assert client.post(url, data={"remark": "x" * 501}).status_code == 400
+    assert client.post(url, data={"remark": ""}).json() == {"remark": None}  # blank clears it
+
+    login_as(client, staff_user)  # admins only
+    assert client.post(url, data={"remark": "x"}).status_code == 403

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, toForm } from "@/lib/api";
 
 export async function createTraining(formData: FormData) {
   const { id } = await api.post<{ id: number }>("/api/training/public", formData);
@@ -49,6 +49,22 @@ export async function submitSurveyOnBehalf(trainingId: number, participationId: 
   await api.post(`/api/training/public/${trainingId}/participants/${participationId}/survey`, formData);
   revalidatePath(`/training/public/${trainingId}`);
   redirect(`/training/public/${trainingId}`);
+}
+
+/** A note on a participant, e.g. why they were absent. Blank clears it. */
+export async function setParticipantRemark(
+  trainingId: number,
+  participationId: number,
+  remark: string
+): Promise<{ error: string } | void> {
+  try {
+    await api.post(`/api/training/public/${trainingId}/participants/${participationId}/remark`, toForm({ remark }));
+  } catch (e) {
+    if (e instanceof ApiError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/training/public/${trainingId}`);
+  revalidatePath("/training/public");
 }
 
 /** Multi-day training: which days a participant attended. */

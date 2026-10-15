@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays } from "lucide-react";
 import { attendedDayNumbers, attendedDaysLabel, dayDate } from "@/lib/attendance";
+import { floatingPosition, useDismissFloating, type FloatingPos } from "@/lib/floating";
 
 /** Participants table: shows which days someone attended; admins can tick/untick days. */
 export function DaysAttendedPicker({
@@ -26,48 +27,18 @@ export function DaysAttendedPicker({
   const box = useRef<HTMLDivElement>(null);
   const popup = useRef<HTMLDivElement>(null);
   // The popup is drawn on <body> (not inside the table) so the table's scroll box can't cut it off.
-  const [pos, setPos] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
+  const [pos, setPos] = useState<FloatingPos | null>(null);
+  const closePopup = useCallback(() => setOpen(false), []);
   const start = new Date(startDate);
   const partial = attendedDayNumbers(attendedDays, totalDays).length < totalDays;
   const label = attendedDaysLabel(attendedDays, totalDays);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (box.current?.contains(t) || popup.current?.contains(t)) return;
-      setOpen(false);
-    };
-    const closeNow = () => setOpen(false); // window resized: the button moved
-    const closeOnScroll = (e: Event) => {
-      // Page or table scrolled (the button moved) - but scrolling the day list inside the popup is fine.
-      if (popup.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    window.addEventListener("resize", closeNow);
-    window.addEventListener("scroll", closeOnScroll, true);
-    return () => {
-      document.removeEventListener("mousedown", close);
-      window.removeEventListener("resize", closeNow);
-      window.removeEventListener("scroll", closeOnScroll, true);
-    };
-  }, [open]);
+  useDismissFloating(open, closePopup, box, popup);
 
   function place() {
-    const rect = box.current?.getBoundingClientRect();
-    if (!rect) return;
-    // The page is scaled down on smaller laptops (html { zoom }, see globals.css). The button's
-    // position is measured in screen pixels but the popup is placed in page pixels, so convert.
-    const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
-    const r = { left: rect.left / zoom, top: rect.top / zoom, bottom: rect.bottom / zoom };
-    const vw = window.innerWidth / zoom;
-    const vh = window.innerHeight / zoom;
-    const width = 192; // w-48
-    const left = Math.max(8, Math.min(r.left, vw - width - 8));
-    const needed = 96 + Math.min(totalDays, 7) * 28; // header + day rows (scrolls after 7) + buttons
-    // Open upwards when there isn't room below (e.g. the last rows, or above the phone tab bar).
-    setPos(vh - r.bottom < needed + 90 && r.top > needed ? { left, bottom: vh - r.top + 4 } : { left, top: r.bottom + 4 });
+    if (!box.current) return;
+    // header + day rows (list scrolls after 7) + buttons
+    setPos(floatingPosition(box.current, 192, 96 + Math.min(totalDays, 7) * 28));
   }
 
   if (!canEdit) {

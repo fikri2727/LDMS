@@ -125,6 +125,8 @@ export interface Participation {
   keyedInById: number | null;
   /** Multi-day trainings: day numbers attended (1 = start date); null = all days. */
   attendedDays: number[] | null;
+  /** e.g. the reason they were absent */
+  remark: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

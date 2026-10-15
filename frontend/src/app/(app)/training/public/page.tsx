@@ -108,6 +108,7 @@ export default async function PublicTrainingListPage() {
         daysAttended: attendedDaysLabel(p.attendedDays, computeDays(t.startDate, t.endDate)),
         hoursAttended:
           attendedDayCount(p.attendedDays, computeDays(t.startDate, t.endDate)) * computeHours(t.startTime, t.endTime),
+        remark: p.remark,
         courseRelevance: p.courseRelevance,
         practicalExercises: p.practicalExercises,
         sufficientTime: p.sufficientTime,

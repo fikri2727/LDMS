@@ -297,6 +297,7 @@ class Participation(Base):
     keyed_in_by_id: Mapped[int | None] = mapped_column("keyedInById", ForeignKey("User.id", ondelete="SET NULL"))
     # Multi-day trainings: day numbers attended (1 = start date). None = every day. See services/attendance.py
     attended_days: Mapped[list[int] | None] = mapped_column("attendedDays", ARRAY(Integer))
+    remark: Mapped[str | None] = mapped_column(Text)  # e.g. why they were absent
 
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()

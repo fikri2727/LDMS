@@ -331,6 +331,18 @@ def mark_absent(training_id: int, participation_id: int, db: DB, _: TrainingAdmi
     return {"ok": True}
 
 
+@router.post("/public/{training_id}/participants/{participation_id}/remark")
+def set_remark(training_id: int, participation_id: int, form: Form, db: DB, _: TrainingAdmin):
+    """A note on a participant, e.g. the reason they were absent. Blank clears it."""
+    p = _get_participation(db, training_id, participation_id)
+    remark = fstr(form, "remark").strip()
+    if len(remark) > 500:
+        raise bad("Remark is too long (max 500 characters).")
+    p.remark = remark or None
+    db.commit()
+    return {"remark": p.remark}
+
+
 @router.post("/public/{training_id}/participants/{participation_id}/days")
 def set_attended_days(training_id: int, participation_id: int, form: Form, db: DB, _: TrainingAdmin):
     """Multi-day trainings: which days this participant attended (form field "days", repeated)."""

@@ -37,6 +37,7 @@ export interface PublicParticipantRow {
   attendance: string;
   daysAttended: string;
   hoursAttended: number;
+  remark: string | null;
   courseRelevance: number | null;
   practicalExercises: number | null;
   sufficientTime: number | null;
@@ -102,6 +103,7 @@ const PARTICIPANT_COLUMNS: { header: string; width: number }[] = [
   { header: "Attendance", width: 12 },
   { header: "Days Attended", width: 14 },
   { header: "Hours Attended", width: 12 },
+  { header: "Remarks", width: 24 },
   { header: "Course Relevance", width: 14 },
   { header: "Practical Exercises", width: 14 },
   { header: "Sufficient Time", width: 14 },
@@ -185,6 +187,7 @@ export function DownloadTrainingReportButton({
           ATTENDANCE_LABELS[r.attendance] ?? r.attendance,
           r.daysAttended,
           r.hoursAttended,
+          r.remark || "—",
           r.courseRelevance ?? "—",
           r.practicalExercises ?? "—",
           r.sufficientTime ?? "—",

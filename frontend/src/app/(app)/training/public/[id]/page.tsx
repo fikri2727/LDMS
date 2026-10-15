@@ -18,12 +18,14 @@ import { ParticipantActionsWrapper } from "@/components/training/ParticipantActi
 import { CertificatePanel } from "@/components/training/CertificatePanel";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { DaysAttendedPicker } from "@/components/training/DaysAttendedPicker";
+import { RemarkEditor } from "@/components/training/RemarkEditor";
 import { computeDays } from "@/lib/training-code";
 import {
   addParticipant,
   removeParticipant,
   markAbsent,
   setAttendedDays,
+  setParticipantRemark,
   uploadCertificate,
   deleteCertificate,
 } from "@/app/(app)/training/public/actions";
@@ -250,6 +252,14 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
                   <td className="px-4 py-3 text-text-secondary">{p.user.department?.name ?? "—"}</td>
                   <td className="px-4 py-3">
                     <StatusBadge attendance={p.attendance} />
+                    {/* Reason for absence (admins can add/edit it on Absent rows) */}
+                    {p.attendance === "ABSENT" || p.remark ? (
+                      <RemarkEditor
+                        remark={p.remark}
+                        canEdit={manage && p.attendance === "ABSENT"}
+                        onSave={setParticipantRemark.bind(null, training.id, p.id)}
+                      />
+                    ) : null}
                   </td>
                   {multiDay && (
                     <td className="px-4 py-3">
