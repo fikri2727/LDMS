@@ -1,16 +1,39 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
+import { SortableTh, type SortDir } from "@/components/ui/SortableTh";
 
 /**
- * Search for a training's Participants table. The rows stay server-rendered; each row is wrapped in
- * <ParticipantRow> which hides itself when it doesn't match what's typed in <ParticipantSearchInput>.
+ * Search + sort for a training's Participants table. The cells stay server-rendered; the page hands
+ * each row's cells to <ParticipantRows>, which filters (by <ParticipantSearchInput>) and orders them
+ * (by the clicked <ParticipantSortTh>) and numbers them in the order shown.
  */
-const SearchContext = createContext<{ query: string; setQuery: (q: string) => void; items: string[] }>({
+export type ParticipantSortKey = "staff" | "department" | "attendance" | "days" | "evaluation" | "pme";
+
+export interface ParticipantRowData {
+  id: number;
+  search: string;
+  sort: Record<ParticipantSortKey, string | number>;
+  cells: React.ReactNode;
+}
+
+type Ctx = {
+  query: string;
+  setQuery: (q: string) => void;
+  items: string[];
+  sortKey: ParticipantSortKey | null;
+  sortDir: SortDir;
+  toggleSort: (key: ParticipantSortKey) => void;
+};
+
+const TableContext = createContext<Ctx>({
   query: "",
   setQuery: () => {},
   items: [],
+  sortKey: null,
+  sortDir: "asc",
+  toggleSort: () => {},
 });
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
@@ -19,11 +42,24 @@ const matches = (text: string, query: string) => !query || norm(text).includes(q
 /** `items` = the search text of every row (name, staff no, department), used for the "x of y" count. */
 export function ParticipantSearchProvider({ items, children }: { items: string[]; children: React.ReactNode }) {
   const [query, setQuery] = useState("");
-  return <SearchContext.Provider value={{ query: norm(query), setQuery, items }}>{children}</SearchContext.Provider>;
+  const [sortKey, setSortKey] = useState<ParticipantSortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  function toggleSort(key: ParticipantSortKey) {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+  return (
+    <TableContext.Provider value={{ query: norm(query), setQuery, items, sortKey, sortDir, toggleSort }}>
+      {children}
+    </TableContext.Provider>
+  );
 }
 
 export function ParticipantSearchInput() {
-  const { query, setQuery, items } = useContext(SearchContext);
+  const { query, setQuery, items } = useContext(TableContext);
   const [text, setText] = useState("");
   if (items.length === 0) return null;
   const shown = items.filter((t) => matches(t, query)).length;
@@ -63,21 +99,64 @@ export function ParticipantSearchInput() {
   );
 }
 
-export function ParticipantRow({ search, children }: { search: string; children: React.ReactNode }) {
-  const { query } = useContext(SearchContext);
-  if (!matches(search, query)) return null;
-  return <tr className="hover:bg-gray-50">{children}</tr>;
+/** A clickable column header: first click sorts A→Z, the next Z→A. */
+export function ParticipantSortTh({
+  sortKey,
+  label,
+  className = "px-4 py-3",
+}: {
+  sortKey: ParticipantSortKey;
+  label: string;
+  className?: string;
+}) {
+  const ctx = useContext(TableContext);
+  return (
+    <SortableTh
+      label={label}
+      active={ctx.sortKey === sortKey}
+      dir={ctx.sortDir}
+      onClick={() => ctx.toggleSort(sortKey)}
+      className={className}
+    />
+  );
 }
 
-/** "No participants match" row - only while a search hides every row. */
-export function NoMatchRow({ colSpan }: { colSpan: number }) {
-  const { query, items } = useContext(SearchContext);
-  if (!query || items.length === 0 || items.some((t) => matches(t, query))) return null;
+function compare(a: string | number, b: string | number) {
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+}
+
+/** The table body: rows filtered by the search, ordered by the chosen column, numbered as shown. */
+export function ParticipantRows({ rows, colSpan }: { rows: ParticipantRowData[]; colSpan: number }) {
+  const { query, sortKey, sortDir } = useContext(TableContext);
+  const shown = useMemo(() => {
+    const list = rows.filter((r) => matches(r.search, query));
+    if (sortKey) {
+      list.sort((a, b) => {
+        const c = compare(a.sort[sortKey], b.sort[sortKey]) || compare(a.sort.staff, b.sort.staff);
+        return sortDir === "asc" ? c : -c;
+      });
+    }
+    return list;
+  }, [rows, query, sortKey, sortDir]);
+
+  if (rows.length > 0 && shown.length === 0) {
+    return (
+      <tr>
+        <td colSpan={colSpan} className="px-4 py-8 text-center text-text-muted">
+          No participants match your search.
+        </td>
+      </tr>
+    );
+  }
   return (
-    <tr>
-      <td colSpan={colSpan} className="px-4 py-8 text-center text-text-muted">
-        No participants match your search.
-      </td>
-    </tr>
+    <>
+      {shown.map((r, i) => (
+        <tr key={r.id} className="hover:bg-gray-50">
+          <td className="px-4 py-3 text-text-muted">{i + 1}</td>
+          {r.cells}
+        </tr>
+      ))}
+    </>
   );
 }

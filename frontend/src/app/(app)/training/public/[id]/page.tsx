@@ -20,12 +20,13 @@ import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { DaysAttendedPicker } from "@/components/training/DaysAttendedPicker";
 import { RemarkEditor } from "@/components/training/RemarkEditor";
 import {
-  NoMatchRow,
-  ParticipantRow,
+  ParticipantRows,
   ParticipantSearchInput,
   ParticipantSearchProvider,
+  ParticipantSortTh,
 } from "@/components/training/ParticipantSearch";
 import { computeDays } from "@/lib/training-code";
+import { attendedDayCount } from "@/lib/attendance";
 import {
   addParticipant,
   removeParticipant,
@@ -247,19 +248,32 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
             <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
               <tr>
                 <th className="px-4 py-3 font-medium w-12">No.</th>
-                <th className="px-4 py-3 font-medium">Staff</th>
-                <th className="px-4 py-3 font-medium">Department</th>
-                <th className="px-4 py-3 font-medium">Attendance</th>
-                {multiDay && <th className="px-4 py-3 font-medium">Days Attended</th>}
-                {manage && <th className="px-4 py-3 font-medium">Evaluation</th>}
-                {viewPme && <th className="px-4 py-3 font-medium">PME</th>}
+                <ParticipantSortTh sortKey="staff" label="Staff" />
+                <ParticipantSortTh sortKey="department" label="Department" />
+                <ParticipantSortTh sortKey="attendance" label="Attendance" />
+                {multiDay && <ParticipantSortTh sortKey="days" label="Days Attended" />}
+                {manage && <ParticipantSortTh sortKey="evaluation" label="Evaluation" />}
+                {viewPme && <ParticipantSortTh sortKey="pme" label="PME" />}
                 {manage && <th className="px-4 py-3 font-medium text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {visibleParticipations.map((p, i) => (
-                <ParticipantRow key={p.id} search={participantSearchText(p)}>
-                  <td className="px-4 py-3 text-text-muted">{i + 1}</td>
+              <ParticipantRows
+                colSpan={4 + (multiDay ? 1 : 0) + (viewPme ? 1 : 0) + (manage ? 2 : 0)}
+                rows={visibleParticipations.map((p) => ({
+                  id: p.id,
+                  search: participantSearchText(p),
+                  sort: {
+                    staff: p.user.staffName,
+                    department: p.user.department?.name ?? "",
+                    attendance: ATTENDANCE_LABELS[p.attendance] ?? p.attendance,
+                    days: p.attendance === "ABSENT" ? 0 : attendedDayCount(p.attendedDays, totalDays),
+                    // Evaluate (still pending) first, then View (done), then absent
+                    evaluation: p.attendance === "PENDING" ? 0 : p.attendance === "COMPLETED" ? 1 : 2,
+                    pme: p.pme ? PME_STATUS_LABELS[p.pme.status] : "~", // no PME sorts last
+                  },
+                  cells: (
+                    <>
                   <td className="px-4 py-3 text-text-primary">
                     {p.user.staffName}
                     <span className="text-text-muted ml-1">({p.user.staffNo})</span>
@@ -335,9 +349,10 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
                       />
                     </td>
                   )}
-                </ParticipantRow>
-              ))}
-              <NoMatchRow colSpan={4 + (multiDay ? 1 : 0) + (viewPme ? 1 : 0) + (manage ? 2 : 0)} />
+                    </>
+                  ),
+                }))}
+              />
               {visibleParticipations.length === 0 && (
                 <tr>
                   <td
