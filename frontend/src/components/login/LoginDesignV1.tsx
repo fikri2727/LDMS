@@ -101,7 +101,7 @@ export function LoginDesignV1() {
                     autoComplete="username"
                     required
                     className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-tamco-blue focus:border-tamco-blue"
-                    placeholder="e.g. T1234"
+                    placeholder="e.g. 00XXXX"
                   />
                 </div>
               </div>
