@@ -114,8 +114,10 @@ export function AppShell({
           <div />
           <UserMenu staffName={staffName} staffNo={staffNo} roleLabel={roleLabel} />
         </header>
-        {/* The page never scrolls sideways (no "wobble" on phones); wide tables scroll inside their own box. */}
-        <main className="flex-1 min-w-0 bg-[var(--background)] overflow-y-auto overflow-x-hidden overscroll-x-none pt-14 lg:pt-0">
+        {/* The page never scrolls sideways (no "wobble" on phones); wide tables scroll inside their own box.
+            relative: hidden form inputs (sr-only, e.g. the survey's 1-5 radios) are positioned inside this
+            scroll area - otherwise they stretch the whole page and add a second scrollbar on PCs. */}
+        <main className="relative flex-1 min-w-0 bg-[var(--background)] overflow-y-auto overflow-x-hidden overscroll-x-none pt-14 lg:pt-0">
           {/* Extra bottom space on phones so the floating tab bar never covers content. */}
           <div className="p-4 sm:p-5 min-h-full pb-[calc(env(safe-area-inset-bottom)+6.5rem)] lg:pb-5">{children}</div>
         </main>
