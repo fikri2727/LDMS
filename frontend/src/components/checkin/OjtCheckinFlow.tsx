@@ -69,7 +69,7 @@ export function OjtCheckinFlow({ ojtId, ojtTitle }: { ojtId: number; ojtTitle: s
           autoComplete="off"
           required
           autoFocus
-          placeholder="e.g. 00XXXX"
+          placeholder="e.g. 001234"
           className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
