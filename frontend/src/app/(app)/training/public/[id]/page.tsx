@@ -19,6 +19,12 @@ import { CertificatePanel } from "@/components/training/CertificatePanel";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { DaysAttendedPicker } from "@/components/training/DaysAttendedPicker";
 import { RemarkEditor } from "@/components/training/RemarkEditor";
+import {
+  NoMatchRow,
+  ParticipantRow,
+  ParticipantSearchInput,
+  ParticipantSearchProvider,
+} from "@/components/training/ParticipantSearch";
 import { computeDays } from "@/lib/training-code";
 import {
   addParticipant,
@@ -35,6 +41,11 @@ type TrainingDetail = Training & {
   participations: (Participation & { user: User & { department: Department | null }; pme: Pme | null })[];
   certificates: (Certificate & { uploadedBy: StaffOption | null })[];
 };
+
+/** What the Participants search matches against. */
+function participantSearchText(p: { user: { staffName: string; staffNo: string; department: { name: string } | null } }) {
+  return `${p.user.staffName} ${p.user.staffNo} ${p.user.department?.name ?? ""}`;
+}
 
 function StatusBadge({ attendance }: { attendance: string }) {
   const styles: Record<string, string> = {
@@ -221,9 +232,13 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
         </div>
       )}
 
+      <ParticipantSearchProvider items={visibleParticipations.map(participantSearchText)}>
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Participants</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Participants</h3>
+            <ParticipantSearchInput />
+          </div>
           {manage && <AddParticipantForm staffOptions={staffOptions} onAdd={addParticipant.bind(null, training.id)} />}
         </div>
 
@@ -243,7 +258,7 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
             </thead>
             <tbody className="divide-y divide-border">
               {visibleParticipations.map((p, i) => (
-                <tr key={p.id} className="hover:bg-gray-50">
+                <ParticipantRow key={p.id} search={participantSearchText(p)}>
                   <td className="px-4 py-3 text-text-muted">{i + 1}</td>
                   <td className="px-4 py-3 text-text-primary">
                     {p.user.staffName}
@@ -320,8 +335,9 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
                       />
                     </td>
                   )}
-                </tr>
+                </ParticipantRow>
               ))}
+              <NoMatchRow colSpan={4 + (multiDay ? 1 : 0) + (viewPme ? 1 : 0) + (manage ? 2 : 0)} />
               {visibleParticipations.length === 0 && (
                 <tr>
                   <td
@@ -336,6 +352,7 @@ export default async function TrainingDetailPage({ params }: { params: Promise<{
           </table>
         </div>
       </div>
+      </ParticipantSearchProvider>
 
       <div>
         <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Certificates</h3>
