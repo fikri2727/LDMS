@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Search, Eye, Pencil, Trash2 } from "lucide-react";
+import { Search, Eye, Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { PROGRAM_LABELS, PLATFORM_LABELS, FUNCTION_LABELS } from "@/lib/labels";
 import { deleteTraining } from "@/app/(app)/training/public/actions";
@@ -254,10 +254,23 @@ export function TrainingRecordsTable({ rows }: { rows: TrainingRow[] }) {
                   <td className="px-3 py-2.5 text-text-secondary">
                     {r.totalDays}d / {r.totalHours.toFixed(2)}h
                   </td>
-                  <td className="px-3 py-2.5 text-text-secondary leading-tight">
+                  {/* Green = every participant has been evaluated (or marked absent); amber = some still pending */}
+                  <td
+                    className={`px-3 py-2.5 leading-tight ${
+                      r.par > 0 && r.pend === 0 ? "text-primary-dark" : "text-text-secondary"
+                    }`}
+                  >
+                    {r.par > 0 && r.pend === 0 && (
+                      <div
+                        title="All participants evaluated"
+                        className="mb-1 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary-dark"
+                      >
+                        <CheckCircle2 size={11} /> Done
+                      </div>
+                    )}
                     <div>Par: {r.par}</div>
                     <div>Comp: {r.comp}</div>
-                    <div>Pend: {r.pend}</div>
+                    <div className={r.pend > 0 ? "font-semibold text-amber-600" : undefined}>Pend: {r.pend}</div>
                     <div>Abs: {r.abs}</div>
                     <div>Per: {perAttendance} %</div>
                   </td>
