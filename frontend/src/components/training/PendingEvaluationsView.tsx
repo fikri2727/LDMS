@@ -211,8 +211,7 @@ export function PendingEvaluationsView({ data }: { data: PendingData }) {
         {departments.map((d) => {
           const key = String(d.id);
           const isOpen = filtering || !!open[key];
-          const publicCount = countType(d.staff, "training");
-          const ojtCount = countType(d.staff, "ojt");
+          const count = d.staff.reduce((n, s) => n + s.items.length, 0); // follows the All / Public / OJT switch
           return (
             <div key={key} className="rounded-2xl border border-border bg-surface overflow-hidden">
               <button
@@ -228,16 +227,9 @@ export function PendingEvaluationsView({ data }: { data: PendingData }) {
                   <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-text-secondary">
                     <Users size={12} /> {d.staff.length} staff
                   </span>
-                  {publicCount > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
-                      <ClipboardList size={12} /> {publicCount} Public/Inhouse
-                    </span>
-                  )}
-                  {ojtCount > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 font-medium text-sky-700">
-                      <ClipboardList size={12} /> {ojtCount} OJT
-                    </span>
-                  )}
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
+                    <ClipboardList size={12} /> {count} pending
+                  </span>
                 </span>
               </button>
               {isOpen && (
