@@ -55,7 +55,19 @@ function dateRange(start: string | Date, end: string | Date) {
 }
 
 /** Admin monitoring: staff who haven't filled in their evaluation yet, grouped by department. */
+type TypeFilter = "all" | "training" | "ojt";
+
+const TYPE_TABS: { value: TypeFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "training", label: "Public / Inhouse" },
+  { value: "ojt", label: "OJT" },
+];
+
+const countType = (staff: PendingStaff[], type: PendingItem["type"]) =>
+  staff.reduce((n, s) => n + s.items.filter((i) => i.type === type).length, 0);
+
 export function PendingEvaluationsView({ data }: { data: PendingData }) {
+  const [type, setType] = useState<TypeFilter>("all");
   const [department, setDepartment] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -63,21 +75,43 @@ export function PendingEvaluationsView({ data }: { data: PendingData }) {
   const q = query.trim().toLowerCase();
   const filtering = q !== "" || department !== "all";
 
-  const departments = useMemo(
+  // Step 1: keep only the chosen type (Public/Inhouse or OJT) - drives the totals and the department list.
+  const byType = useMemo(
     () =>
       data.departments
+        .map((d) => ({
+          ...d,
+          staff: d.staff
+            .map((s) => ({ ...s, items: s.items.filter((i) => type === "all" || i.type === type) }))
+            .filter((s) => s.items.length > 0),
+        }))
+        .filter((d) => d.staff.length > 0),
+    [data.departments, type]
+  );
+  const totals = {
+    pending: byType.reduce((n, d) => n + d.staff.reduce((m, s) => m + s.items.length, 0), 0),
+    staff: byType.reduce((n, d) => n + d.staff.length, 0),
+    training: byType.reduce((n, d) => n + countType(d.staff, "training"), 0),
+    ojt: byType.reduce((n, d) => n + countType(d.staff, "ojt"), 0),
+  };
+
+  // Step 2: department + search.
+  const departments = useMemo(
+    () =>
+      byType
         .filter((d) => department === "all" || String(d.id) === department)
         .map((d) => ({
           ...d,
-          staff: d.staff.filter(
-            (s) =>
-              !q ||
-              `${s.staffName} ${s.staffNo}`.toLowerCase().includes(q) ||
-              s.items.some((i) => i.title.toLowerCase().includes(q))
-          ),
+          staff: d.staff
+            .map((s) =>
+              !q || `${s.staffName} ${s.staffNo}`.toLowerCase().includes(q)
+                ? s
+                : { ...s, items: s.items.filter((i) => i.title.toLowerCase().includes(q)) }
+            )
+            .filter((s) => s.items.length > 0),
         }))
         .filter((d) => d.staff.length > 0),
-    [data.departments, department, q]
+    [byType, department, q]
   );
 
   const allOpen = departments.length > 0 && departments.every((d) => open[String(d.id)]);
@@ -94,18 +128,43 @@ export function PendingEvaluationsView({ data }: { data: PendingData }) {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Public/Inhouse vs OJT */}
+      <div className="inline-flex rounded-xl border border-border bg-surface p-1">
+        {TYPE_TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => {
+              setType(t.value);
+              setDepartment("all");
+            }}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              type === t.value ? "bg-primary-dark text-white" : "text-text-secondary hover:bg-gray-50"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="rounded-2xl border border-border bg-surface p-4">
           <p className="text-xs text-text-muted uppercase tracking-wide">Evaluations pending</p>
-          <p className="text-2xl font-semibold text-amber-600">{data.totalPending}</p>
+          <p className="text-2xl font-semibold text-amber-600">{totals.pending}</p>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4">
-          <p className="text-xs text-text-muted uppercase tracking-wide">Staff with pending</p>
-          <p className="text-2xl font-semibold text-text-primary">{data.totalStaff}</p>
+          <p className="text-xs text-text-muted uppercase tracking-wide">Public / Inhouse</p>
+          <p className="text-2xl font-semibold text-text-primary">{totals.training}</p>
         </div>
         <div className="rounded-2xl border border-border bg-surface p-4">
-          <p className="text-xs text-text-muted uppercase tracking-wide">Departments</p>
-          <p className="text-2xl font-semibold text-text-primary">{data.departments.length}</p>
+          <p className="text-xs text-text-muted uppercase tracking-wide">OJT</p>
+          <p className="text-2xl font-semibold text-text-primary">{totals.ojt}</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          <p className="text-xs text-text-muted uppercase tracking-wide">Staff · Departments</p>
+          <p className="text-2xl font-semibold text-text-primary">
+            {totals.staff} <span className="text-base font-normal text-text-muted">· {byType.length}</span>
+          </p>
         </div>
       </div>
 
@@ -115,8 +174,8 @@ export function PendingEvaluationsView({ data }: { data: PendingData }) {
           onChange={(e) => setDepartment(e.target.value)}
           className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
         >
-          <option value="all">All departments ({data.departments.length})</option>
-          {data.departments.map((d) => (
+          <option value="all">All departments ({byType.length})</option>
+          {byType.map((d) => (
             <option key={String(d.id)} value={String(d.id)}>
               {d.name} ({d.staff.length})
             </option>
@@ -142,13 +201,18 @@ export function PendingEvaluationsView({ data }: { data: PendingData }) {
         )}
       </div>
 
-      {departments.length === 0 && <p className="text-sm text-text-muted">Nothing matches your search.</p>}
+      {departments.length === 0 && (
+        <p className="text-sm text-text-muted">
+          {totals.pending === 0 ? "No pending evaluations of this type." : "Nothing matches your search."}
+        </p>
+      )}
 
       <div className="space-y-3">
         {departments.map((d) => {
           const key = String(d.id);
           const isOpen = filtering || !!open[key];
-          const count = d.staff.reduce((n, s) => n + s.items.length, 0);
+          const publicCount = countType(d.staff, "training");
+          const ojtCount = countType(d.staff, "ojt");
           return (
             <div key={key} className="rounded-2xl border border-border bg-surface overflow-hidden">
               <button
@@ -164,9 +228,16 @@ export function PendingEvaluationsView({ data }: { data: PendingData }) {
                   <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-text-secondary">
                     <Users size={12} /> {d.staff.length} staff
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
-                    <ClipboardList size={12} /> {count} pending
-                  </span>
+                  {publicCount > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
+                      <ClipboardList size={12} /> {publicCount} Public/Inhouse
+                    </span>
+                  )}
+                  {ojtCount > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 font-medium text-sky-700">
+                      <ClipboardList size={12} /> {ojtCount} OJT
+                    </span>
+                  )}
                 </span>
               </button>
               {isOpen && (
