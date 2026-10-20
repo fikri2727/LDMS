@@ -140,6 +140,22 @@ def test_ojt_excel_upload(admin_client, db, staff_user):
     assert o.trainer_type.value == "EXTERNAL"
 
 
+def test_ojt_excel_staff_no_without_leading_zeros(admin_client, db):
+    """Excel turns 001622 into the number 1622 unless the cell is text - it must still match."""
+    u = db.query(User).filter(User.staff_no.op("~")("^0[0-9]{5}$"), User.status == "ACTIVE").first()
+    wb = Workbook()
+    ws = wb.active
+    ws["C3"], ws["C4"], ws["C5"], ws["C6"] = "zero pad", "line 1", "Internal", "someone"
+    ws["C7"] = ws["C8"] = datetime(2026, 5, 4)
+    ws["C9"], ws["C10"] = "8:00 AM", "5:00 PM"
+    ws["B13"] = int(u.staff_no)  # e.g. 1622
+    buf = io.BytesIO()
+    wb.save(buf)
+    r = admin_client.post("/api/ojt/upload", files={"file": ("o.xlsx", buf.getvalue())})
+    assert r.status_code == 200, r.text
+    assert [p.user_id for p in db.get(Ojt, r.json()["id"]).participants] == [u.id]
+
+
 def test_public_checkin(client, db, admin_client, staff_user):
     tid = admin_client.post("/api/training/public", data=TRAINING_FORM).json()["id"]
     client.cookies.clear()

@@ -180,7 +180,7 @@ def parse_ojt_excel(data: bytes) -> dict:
 
     staff_nos: list[str] = []
     for r in range(FIRST_PARTICIPANT_ROW, max(ws.max_row, FIRST_PARTICIPANT_ROW) + 1):
-        no = cell_text(ws[f"{PARTICIPANT_COLUMN}{r}"].value).upper()
+        no = normalize_staff_no(cell_text(ws[f"{PARTICIPANT_COLUMN}{r}"].value))  # 1622 -> 001622
         if no and no not in staff_nos:
             staff_nos.append(no)
     if not staff_nos:
