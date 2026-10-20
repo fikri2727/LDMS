@@ -30,6 +30,7 @@ from app.rbac import can_evaluate_on_behalf, can_manage_training
 from app.serialize import ser
 from app.services.attendance import training_days
 from app.services.elearning import module_hours_map
+from app.services.pending_evals import pending_by_department
 from app.services.survey import apply_survey_answers
 from app.services.uploads import delete_upload, file_response, save_upload
 from app.services.util import generate_training_code
@@ -241,6 +242,12 @@ def participation_detail(training_id: int, participation_id: int, db: DB, user: 
     if not can_evaluate_on_behalf(user):
         out["keyedInById"] = None
     return out
+
+
+@router.get("/pending-evaluations")
+def pending_evaluations(db: DB, _: TrainingAdmin):
+    """Monitoring: staff who still haven't filled in their evaluation, grouped by department."""
+    return pending_by_department(db)
 
 
 @router.get("/elearning-hours")

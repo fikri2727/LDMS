@@ -21,6 +21,7 @@ export function TrainingTabs({
         { href: "/training/ojt", label: "OJT" },
         { href: "/training/elearning-hours", label: "E-Learning Records" },
         { href: "/training/pme", label: "PME" },
+        { href: "/training/pending-evaluations", label: "Pending Evaluations" },
       ]
     : [
         { href: "/training", label: "My Training" },
@@ -29,7 +30,7 @@ export function TrainingTabs({
       ];
 
   return (
-    <div className="flex gap-1 border-b border-border">
+    <div className="flex gap-1 border-b border-border overflow-x-auto whitespace-nowrap">
       {tabs.map((tab) => {
         const active = tab.href === "/training" ? pathname === "/training" : pathname.startsWith(tab.href);
         return (

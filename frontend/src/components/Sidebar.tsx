@@ -62,6 +62,7 @@ export function Sidebar({
             { href: "/training/ojt", label: "OJT" },
             { href: "/training/elearning-hours", label: "E-Learning Records" },
             { href: "/training/pme", label: "PME" },
+            { href: "/training/pending-evaluations", label: "Pending Evaluations" },
           ]
         : canManageOjt
           ? [
