@@ -155,7 +155,7 @@ def public_list(db: DB, user: CurrentUser):
         trainings = db.scalars(
             select(Training)
             .where(Training.participations.any(Participation.user_id == user.id))
-            .order_by(Training.start_date.desc())
+            .order_by(Training.start_date.desc(), Training.id.desc())
         ).all()
         return {"trainings": ser(trainings), "ojts": []}
 
@@ -165,12 +165,12 @@ def public_list(db: DB, user: CurrentUser):
             selectinload(Training.participations).selectinload(Participation.pme),
             selectinload(Training.participations).selectinload(Participation.user).selectinload(User.department),
         )
-        .order_by(Training.start_date.desc())
+        .order_by(Training.start_date.desc(), Training.id.desc())
     ).all()
     ojts = db.scalars(
         select(Ojt)
         .options(selectinload(Ojt.participants).selectinload(ParticipateOjt.user))
-        .order_by(Ojt.start_date.desc())
+        .order_by(Ojt.start_date.desc(), Ojt.id.desc())
     ).all()
     return {
         "trainings": ser(trainings, {"participations": {"pme": True, "user": {"department": True}}}),

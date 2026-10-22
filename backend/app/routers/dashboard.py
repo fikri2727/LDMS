@@ -226,7 +226,7 @@ def department_breakdown(db: Session, d: Data, department_id: int | None = None)
                 "avgHour": r2(mh / count) if count > 0 else 0,
             }
         )
-    return sorted(rows, key=lambda r: r["avgHour"])
+    return sorted(rows, key=lambda r: (r["avgHour"], r["department"]))  # ties: by department code
 
 
 def recent_records(db: Session, user_id: int, limit: int = 4) -> list[dict]:

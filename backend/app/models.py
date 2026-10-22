@@ -272,7 +272,9 @@ class Training(Base):
     updated_at: Mapped[datetime] = updated_at_col()
 
     created_by: Mapped[User | None] = relationship()
-    participations: Mapped[list["Participation"]] = relationship(back_populates="training", passive_deletes=True, cascade="all, delete-orphan")
+    participations: Mapped[list["Participation"]] = relationship(
+        back_populates="training", passive_deletes=True, cascade="all, delete-orphan", order_by="Participation.id"
+    )
     certificates: Mapped[list["Certificate"]] = relationship(back_populates="training", passive_deletes=True, cascade="all, delete-orphan")
 
 
@@ -346,7 +348,9 @@ class Ojt(Base):
     updated_at: Mapped[datetime] = updated_at_col()
 
     created_by: Mapped[User | None] = relationship()
-    participants: Mapped[list["ParticipateOjt"]] = relationship(back_populates="ojt", passive_deletes=True, cascade="all, delete-orphan")
+    participants: Mapped[list["ParticipateOjt"]] = relationship(
+        back_populates="ojt", passive_deletes=True, cascade="all, delete-orphan", order_by="ParticipateOjt.id"
+    )
 
 
 class ParticipateOjt(Base):
