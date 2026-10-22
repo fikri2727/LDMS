@@ -10,8 +10,8 @@ export function defaultYearRange(): DateRange {
   return { start: new Date(Date.UTC(year, 0, 1)), end: new Date(Date.UTC(year, 11, 31)) };
 }
 
-/** Company-wide L&D KPI: every department should average this many training hours per active staff member, per year. */
-export const ANNUAL_DEPARTMENT_HOUR_TARGET = 24;
+/** Company-wide L&D KPI: every staff member needs this many training hours per year (department average target). */
+export const ANNUAL_DEPARTMENT_HOUR_TARGET = 16;
 
 /** Pro-rates the annual hour target to the length of the selected date range, so a narrower filter doesn't read as "below target" unfairly. */
 export function departmentHourTargetForRange(range: DateRange): number {
