@@ -58,7 +58,8 @@ def test_dashboard_figures(client, db, admin):
     assert r["split"] == [{"name": "Public / Inhouse", "value": 32}, {"name": "OJT", "value": 3.5},
                           {"name": "E-Learning", "value": 0}]
     assert r["monthlyCost"][2] == {"month": "MAC", "cost": 1000} and r["monthlyCost"][4]["cost"] == 250.5
-    assert r["topTrainers"] == [{"trainer": "ALICE", "totalHour": 19.5}, {"trainer": "BOB", "totalHour": 8}]
+    # T1/T2 are external (Public) trainings -> not counted; only ALICE's internal OJT (3.5h)
+    assert r["topTrainers"] == [{"trainer": "ALICE", "totalHour": 3.5}]
     dept_a = next(d for d in r["departmentData"] if d["departmentFullName"] == a.department.name)
     assert dept_a["manHour"] >= 16
 
@@ -70,3 +71,18 @@ def test_dashboard_figures(client, db, admin):
     assert r["monthlyHours"][2]["hours"] == 16 and r["monthlyHours"][4]["hours"] == 8
     assert [x["title"] for x in r["recentRecords"]][:2] == ["T2", "T1"]
     assert r["myDepartmentData"][0]["departmentFullName"] == a.department.name
+
+
+def test_top_trainers_internal_staff_only(client, db, admin):
+    """Only Inhouse (Internal Trainer) trainings and internal-trainer OJT count."""
+    from tests.conftest import login_as
+
+    login_as(client, admin)
+    base = {"platform": "PHYSICAL", "function": "DIGITAL", "venue": "hq", "startTime": "08:00", "endTime": "18:00"}
+    big = {"startDate": "2026-02-02", "endDate": "2026-02-27"}  # long enough to reach the top 5
+    client.post("/api/training/public", data={**base, **big, "title": "ext zz", "program": "EXT", "trainer": "ZZ OUTSIDE VENDOR"})
+    client.post("/api/training/public", data={**base, **big, "title": "intx zz", "program": "INTX", "trainer": "ZZ HIRED TRAINER"})
+    client.post("/api/training/public", data={**base, **big, "title": "inti zz", "program": "INTI", "trainer": "ZZ TAMCO STAFF"})
+    names = [r["trainer"] for r in client.get("/api/dashboard", params={"start": "2026-01-01", "end": "2026-12-31"}).json()["topTrainers"]]
+    assert "ZZ TAMCO STAFF" in names
+    assert "ZZ OUTSIDE VENDOR" not in names and "ZZ HIRED TRAINER" not in names

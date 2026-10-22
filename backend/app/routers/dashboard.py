@@ -22,6 +22,7 @@ from app.models import (
     Participation,
     StaffStatus,
     Training,
+    TrainerType,
     TrainingProgram,
     User,
 )
@@ -158,11 +159,16 @@ def monthly_cost(d: Data) -> list[dict]:
 
 
 def top_trainers(d: Data, user_id: int | None) -> list[dict]:
+    """TAMCO's own staff trainers only: Inhouse (Internal Trainer) trainings and OJT with an internal trainer."""
     trainings, ojts = d.mine(user_id)
     hours: dict[str, float] = {}
     for t in trainings:
+        if t.program != TrainingProgram.INTI:
+            continue  # external trainers / providers
         hours[t.trainer] = hours.get(t.trainer, 0) + (user_training_hours(t, user_id) if user_id else session_hours(t))
     for o in ojts:
+        if o.trainer_type != TrainerType.INTERNAL:
+            continue
         hours[o.trainer_name] = hours.get(o.trainer_name, 0) + o.total_day * o.total_hour
     rows = [{"trainer": k, "totalHour": r2(v)} for k, v in hours.items()]
     return sorted(rows, key=lambda r: r["totalHour"], reverse=True)[:5]
