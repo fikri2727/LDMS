@@ -9,7 +9,8 @@ import { SortableTh, type SortDir } from "@/components/ui/SortableTh";
  * each row's cells to <ParticipantRows>, which filters (by <ParticipantSearchInput>) and orders them
  * (by the clicked <ParticipantSortTh>) and numbers them in the order shown.
  */
-export type ParticipantSortKey = "staff" | "department" | "attendance" | "days" | "evaluation" | "pme";
+/** Column keys are chosen by each page (e.g. "staff", "department", "rateBefore"); "staff" is the tie-breaker. */
+export type ParticipantSortKey = string;
 
 export interface ParticipantRowData {
   id: number;

@@ -10,10 +10,21 @@ import { TRAINER_TYPE_LABELS } from "@/lib/labels";
 import { AddParticipantForm } from "@/components/training/AddParticipantForm";
 import { OjtParticipantActionsWrapper } from "@/components/training/OjtParticipantActionsWrapper";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
+import {
+  ParticipantRows,
+  ParticipantSearchInput,
+  ParticipantSearchProvider,
+  ParticipantSortTh,
+} from "@/components/training/ParticipantSearch";
 import { addOjtParticipant, removeOjtParticipant } from "@/app/(app)/training/ojt/actions";
 import type { Ojt, ParticipateOjt, StaffOption, User } from "@/lib/db-types";
 
 type ParticipantRow = ParticipateOjt & { user: User; clerk: Pick<User, "id" | "staffNo" | "staffName"> | null };
+
+/** What the Participants search matches against. */
+function participantSearchText(p: ParticipantRow) {
+  return `${p.user.staffName} ${p.user.staffNo} ${p.department ?? ""}`;
+}
 
 function ParticipantTable({
   title,
@@ -38,17 +49,29 @@ function ParticipantTable({
           <thead className="bg-gray-50 text-left text-text-muted text-xs uppercase tracking-wide">
             <tr>
               <th className="px-4 py-3 font-medium w-12">No.</th>
-              <th className="px-4 py-3 font-medium">Staff</th>
-              <th className="px-4 py-3 font-medium">Rate Before OJT</th>
-              <th className="px-4 py-3 font-medium">Rate After OJT</th>
-              <th className="px-4 py-3 font-medium">Key In By</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
+              <ParticipantSortTh sortKey="staff" label="Staff" />
+              <ParticipantSortTh sortKey="rateBefore" label="Rate Before OJT" />
+              <ParticipantSortTh sortKey="rateAfter" label="Rate After OJT" />
+              <ParticipantSortTh sortKey="keyInBy" label="Key In By" />
+              <ParticipantSortTh sortKey="action" label="Actions" className="px-4 py-3 text-right [&>button]:ml-auto" />
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map((p, i) => (
-              <tr key={p.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-text-muted">{i + 1}</td>
+            <ParticipantRows
+              colSpan={6}
+              rows={rows.map((p) => ({
+                id: p.id,
+                search: participantSearchText(p),
+                sort: {
+                  staff: p.user.staffName,
+                  rateBefore: p.q2 ?? -1, // not yet rated -> first when ascending
+                  rateAfter: p.q3 ?? -1,
+                  keyInBy: p.clerk?.staffName ?? "Self",
+                  // Evaluate (still pending) first, then View (done), then anything else
+                  action: p.attendance === "PENDING" ? 0 : p.attendance === "COMPLETED" ? 1 : 2,
+                },
+                cells: (
+                  <>
                 <td className="px-4 py-3 text-text-primary">
                   {p.user.staffName}
                   <span className="text-text-muted ml-1">({p.user.staffNo})</span>
@@ -85,8 +108,10 @@ function ParticipantTable({
                     )}
                   </div>
                 </td>
-              </tr>
-            ))}
+                  </>
+                ),
+              }))}
+            />
             {rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-text-muted text-sm">
@@ -226,13 +251,19 @@ export default async function OjtDetailPage({ params }: { params: Promise<{ id: 
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Participants</h3>
-        {manage && <AddParticipantForm staffOptions={staffOptions} onAdd={addOjtParticipant.bind(null, ojt.id)} />}
-      </div>
+      {/* One search + sort for both tables (Permanent and Contract) */}
+      <ParticipantSearchProvider items={visibleParticipants.map(participantSearchText)}>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Participants</h3>
+            <ParticipantSearchInput />
+          </div>
+          {manage && <AddParticipantForm staffOptions={staffOptions} onAdd={addOjtParticipant.bind(null, ojt.id)} />}
+        </div>
 
-      <ParticipantTable title="Permanent Staff" rows={permanent} ojtId={ojtId} currentUserId={session.userId} manage={manage} onBehalf={onBehalf} />
-      <ParticipantTable title="Contract Staff" rows={contract} ojtId={ojtId} currentUserId={session.userId} manage={manage} onBehalf={onBehalf} />
+        <ParticipantTable title="Permanent Staff" rows={permanent} ojtId={ojtId} currentUserId={session.userId} manage={manage} onBehalf={onBehalf} />
+        <ParticipantTable title="Contract Staff" rows={contract} ojtId={ojtId} currentUserId={session.userId} manage={manage} onBehalf={onBehalf} />
+      </ParticipantSearchProvider>
     </div>
   );
 }
