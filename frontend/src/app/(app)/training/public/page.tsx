@@ -20,11 +20,6 @@ type TrainingRow_ = Training & {
 };
 type OjtRow_ = Ojt & { participants: (ParticipateOjt & { user: User })[] };
 
-function average(values: number[]): number | null {
-  if (values.length === 0) return null;
-  return Math.round((values.reduce((sum, v) => sum + v, 0) / values.length) * 100) / 100;
-}
-
 export default async function PublicTrainingListPage() {
   const session = await requireSession();
   const manage = canManageTraining(session);
@@ -134,10 +129,6 @@ export default async function PublicTrainingListPage() {
       const comp = o.participants.filter((p) => p.attendance === "COMPLETED").length;
       const pend = o.participants.filter((p) => p.attendance === "PENDING").length;
       const abs = o.participants.filter((p) => p.attendance === "ABSENT").length;
-      const skillBefore = o.participants.map((p) => p.q2).filter((v): v is number => v != null);
-      const skillAfter = o.participants.map((p) => p.q3).filter((v): v is number => v != null);
-      const avgSkillBefore = average(skillBefore);
-      const avgSkillAfter = average(skillAfter);
 
       const shared = {
         trainingCode: o.trainingCode,
@@ -157,20 +148,22 @@ export default async function PublicTrainingListPage() {
         comp,
         pend,
         abs,
-        avgSkillBefore,
-        avgSkillAfter,
-        avgSkillImprovement:
-          avgSkillBefore != null && avgSkillAfter != null ? Math.round((avgSkillAfter - avgSkillBefore) * 100) / 100 : null,
       };
 
       if (o.participants.length === 0) {
-        return [{ ...shared, ojtGroupNo: ojtIndex + 1, participantName: "—" }];
+        return [
+          { ...shared, ojtGroupNo: ojtIndex + 1, participantName: "—", skillBefore: null, skillAfter: null, whatLearned: null },
+        ];
       }
 
       return o.participants.map((p, pIndex) => ({
         ...shared,
         ojtGroupNo: pIndex === 0 ? ojtIndex + 1 : null,
         participantName: p.user.staffName,
+        // This participant's own answers: skill rating before/after the OJT (1-5) and what they learned
+        skillBefore: p.q2,
+        skillAfter: p.q3,
+        whatLearned: p.q1,
       }));
     });
 

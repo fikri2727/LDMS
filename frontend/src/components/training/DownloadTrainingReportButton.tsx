@@ -73,10 +73,11 @@ export interface OjtReportRow {
   comp: number;
   pend: number;
   abs: number;
-  avgSkillBefore: number | null;
-  avgSkillAfter: number | null;
-  avgSkillImprovement: number | null;
   participantName: string;
+  /** The participant's own OJT evaluation answers — ratings are whole numbers 1-5. */
+  skillBefore: number | null;
+  skillAfter: number | null;
+  whatLearned: string | null;
 }
 
 const PARTICIPANT_COLUMNS: { header: string; width: number }[] = [
@@ -138,9 +139,10 @@ const OJT_COLUMNS: { header: string; width: number }[] = [
   { header: "Absent", width: 10 },
   { header: "Attendance %", width: 12 },
   { header: "Total Man Hours", width: 14 },
-  { header: "Avg Skill Before", width: 14 },
-  { header: "Avg Skill After", width: 14 },
-  { header: "Avg Skill Improvement", width: 16 },
+  { header: "Skill Before (1-5)", width: 14 },
+  { header: "Skill After (1-5)", width: 14 },
+  { header: "Improvement", width: 12 },
+  { header: "What have you learned from this OJT?", width: 50 },
 ];
 
 export function DownloadTrainingReportButton({
@@ -229,11 +231,15 @@ export function DownloadTrainingReportButton({
           r.abs,
           perAttendance,
           r.totalManHour,
-          r.avgSkillBefore ?? "—",
-          r.avgSkillAfter ?? "—",
-          r.avgSkillImprovement ?? "—",
+          r.skillBefore ?? "—",
+          r.skillAfter ?? "—",
+          r.skillBefore != null && r.skillAfter != null ? r.skillAfter - r.skillBefore : "—",
+          r.whatLearned || "—",
         ]);
       });
+
+      // Long "What have you learned" answers wrap inside their cell instead of spilling over
+      ojtSheet.getColumn(OJT_COLUMNS.length).alignment = { wrapText: true, vertical: "top" };
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
