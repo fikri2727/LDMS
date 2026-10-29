@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { X, Users } from "lucide-react";
 import { ATTENDANCE_LABELS, PME_STATUS_LABELS } from "@/lib/labels";
+import { SortableTh, type SortDir } from "@/components/ui/SortableTh";
 
 export interface ParticipantSummary {
   staffNo: string;
@@ -23,6 +25,18 @@ const PME_BADGE: Record<string, string> = {
   PENDING: "bg-purple/10 text-purple",
 };
 
+type SortKey = "staffNo" | "staffName" | "department" | "attendance" | "pmeStatus";
+
+// Status columns sort by stage (Pending first), not alphabetically
+const ATTENDANCE_ORDER: Record<string, number> = { PENDING: 0, COMPLETED: 1, ABSENT: 2 };
+const PME_ORDER: Record<string, number> = { PENDING: 0, VERIFIED: 1 };
+
+function sortValue(p: ParticipantSummary, key: SortKey): string | number {
+  if (key === "attendance") return ATTENDANCE_ORDER[p.attendance] ?? 9;
+  if (key === "pmeStatus") return p.pmeStatus ? (PME_ORDER[p.pmeStatus] ?? 8) : 9;
+  return p[key];
+}
+
 /** Lightweight "who's in this session, and where they stand" popup — shared by
  * the OJT and Public/Inhouse training-code columns. Staff No / Name /
  * Department / Status, plus a PME column when the caller opts in (Public/
@@ -40,6 +54,34 @@ export function ParticipantsModal({
   showPme?: boolean;
   onClose: () => void;
 }) {
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return participants;
+    return [...participants].sort((a, b) => {
+      const x = sortValue(a, sortKey);
+      const y = sortValue(b, sortKey);
+      const c =
+        (typeof x === "number" && typeof y === "number"
+          ? x - y
+          : String(x).localeCompare(String(y), undefined, { numeric: true, sensitivity: "base" })) ||
+        a.staffName.localeCompare(b.staffName);
+      return sortDir === "asc" ? c : -c;
+    });
+  }, [participants, sortKey, sortDir]);
+
+  const th = (key: SortKey, label: string) => (
+    <SortableTh label={label} active={sortKey === key} dir={sortDir} onClick={() => toggleSort(key)} className="px-3 py-1.5" />
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
       <div
@@ -69,15 +111,15 @@ export function ParticipantsModal({
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 text-left text-text-muted text-[10px] uppercase tracking-wide">
                   <tr>
-                    <th className="px-3 py-1.5 font-medium">Staff No</th>
-                    <th className="px-3 py-1.5 font-medium">Name</th>
-                    <th className="px-3 py-1.5 font-medium">Department</th>
-                    <th className="px-3 py-1.5 font-medium">Status</th>
-                    {showPme && <th className="px-3 py-1.5 font-medium">PME</th>}
+                    {th("staffNo", "Staff No")}
+                    {th("staffName", "Name")}
+                    {th("department", "Department")}
+                    {th("attendance", "Status")}
+                    {showPme && th("pmeStatus", "PME")}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {participants.map((p) => (
+                  {sorted.map((p) => (
                     <tr key={p.staffNo}>
                       <td className="px-3 py-1.5 text-text-secondary whitespace-nowrap">{p.staffNo}</td>
                       <td className="px-3 py-1.5 text-text-primary font-medium">{p.staffName}</td>
