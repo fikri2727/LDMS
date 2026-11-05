@@ -103,14 +103,15 @@ export function StaffForm({
   const [pending, startTransition] = useTransition();
   const [recheck, setRecheck] = useState(0);
 
-  // Add Staff: check the Staff No. against existing records (active and resigned) while typing.
-  const [staffNo, setStaffNo] = useState("");
+  // Check a new or changed Staff No. against existing records (active and resigned) while typing.
+  const [staffNo, setStaffNo] = useState(initial?.staffNo ?? "");
   const typedNo = staffNo.trim().toUpperCase();
+  const noChanged = isNew || typedNo !== initial?.staffNo;
   const [lookup, setLookup] = useState<{ staffNo: string; result: StaffNoCheck | null; recheck: number } | null>(
     null
   );
   useEffect(() => {
-    if (!isNew || !typedNo) return;
+    if (!noChanged || !typedNo) return;
     let stale = false;
     const timer = setTimeout(async () => {
       let result: StaffNoCheck | null = null;
@@ -125,9 +126,9 @@ export function StaffForm({
       stale = true;
       clearTimeout(timer);
     };
-  }, [isNew, typedNo, recheck]);
+  }, [noChanged, typedNo, recheck]);
   const check: StaffNoCheck | "checking" | null =
-    !isNew || !typedNo
+    !noChanged || !typedNo
       ? null
       : lookup?.staffNo === typedNo && lookup.recheck === recheck
         ? lookup.result
@@ -175,16 +176,15 @@ export function StaffForm({
           <input
             name="staffNo"
             defaultValue={initial?.staffNo}
-            disabled={!isNew}
             required
             autoComplete="off"
-            onChange={isNew ? (e) => setStaffNo(e.target.value) : undefined}
+            onChange={(e) => setStaffNo(e.target.value)}
             aria-invalid={duplicate ? true : undefined}
-            className={`w-full rounded-xl border bg-surface px-3 py-2.5 text-sm text-text-primary disabled:bg-gray-100 disabled:text-text-muted focus:outline-none focus:ring-2 ${
+            className={`w-full rounded-xl border bg-surface px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 ${
               duplicate ? "border-rose-400 focus:ring-rose-300" : "border-border focus:ring-primary"
             }`}
           />
-          {isNew && check === "checking" && <p className="mt-1 text-xs text-text-muted">Checking…</p>}
+          {check === "checking" && <p className="mt-1 text-xs text-text-muted">Checking…</p>}
           {duplicate && (
             <p className="mt-1 flex items-start gap-1 text-xs text-rose-600">
               <AlertCircle size={13} className="mt-px shrink-0" />
@@ -200,6 +200,7 @@ export function StaffForm({
           {check !== null && check !== "checking" && !check.exists && (
             <p className="mt-1 flex items-center gap-1 text-xs text-primary-dark">
               <CheckCircle2 size={13} /> {check.staffNo} is available.
+              {!isNew && " This staff will sign in with the new number."}
             </p>
           )}
         </div>

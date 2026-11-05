@@ -200,6 +200,25 @@ def test_bulk_resign_needs_staff_admin(client, db):
     assert r.status_code == 403
 
 
+def test_edit_staff_no(admin_client, db):
+    a, b = db.query(User).filter(User.role_type == RoleType.STAFF, User.status == StaffStatus.ACTIVE).order_by(User.id).limit(2).all()
+    old_no = a.staff_no
+    fields = {"staffName": a.staff_name, "gender": a.gender.value, "designation": a.designation.value, "status": "ACTIVE", "roleType": "STAFF"}
+
+    r = admin_client.post(f"/api/staff/{a.id}", data={**fields, "staffNo": b.staff_no})
+    assert r.status_code == 400 and "already exists" in r.json()["detail"]
+    db.expire_all()
+    assert a.staff_no == old_no
+
+    assert admin_client.post(f"/api/staff/{a.id}", data={**fields, "staffNo": " zz4444 "}).status_code == 200
+    db.expire_all()
+    assert a.staff_no == "ZZ4444"
+
+    assert admin_client.post(f"/api/staff/{a.id}", data=fields).status_code == 200  # left out: unchanged
+    db.expire_all()
+    assert a.staff_no == "ZZ4444"
+
+
 def test_sync_resign_preview_then_apply(admin_client, db):
     gone, back = db.query(User).filter(User.role_type == RoleType.STAFF, User.status == StaffStatus.ACTIVE).order_by(User.id).limit(2).all()
     back.status = StaffStatus.RESIGN

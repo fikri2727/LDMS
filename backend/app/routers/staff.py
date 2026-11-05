@@ -3,7 +3,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
@@ -579,6 +579,15 @@ def update_staff(staff_id: int, form: Form, db: DB, session: StaffAdmin):
     if user is None:
         raise HTTPException(404, "Staff not found.")
     old_department_id = user.department_id
+
+    # Records point at the staff's id, so only their login and the PME copy of the number change.
+    staff_no = _normalize_staff_no(fstr(form, "staffNo"))
+    if staff_no and staff_no != user.staff_no:
+        existing = db.scalar(select(User).where(User.staff_no == staff_no))
+        if existing:
+            raise bad(_duplicate_message(existing))
+        user.staff_no = staff_no
+        db.execute(update(Pme).where(Pme.user_id == user.id).values(staff_no=staff_no))
 
     user.staff_name = staff_name
     user.email = fopt(form, "email")
