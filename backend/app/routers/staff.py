@@ -32,7 +32,7 @@ from app.serialize import ser, value
 from app.services.attendance import participant_hours
 from app.services.elearning import module_hours_map
 from app.services.org import active_staff_options, division_tree, sync_department_hod
-from app.services.excel import parse_staff_excel
+from app.services.excel import parse_staff_excel, parse_staff_numbers
 from app.services.util import now_utc
 
 router = APIRouter(prefix="/api/staff", tags=["staff"])
@@ -291,6 +291,34 @@ def create_staff(form: Form, db: DB, _: StaffAdmin):
 def _duplicate_message(user: User) -> str:
     resigned = " (resigned)" if user.status == StaffStatus.RESIGN else ""
     return f'Staff No "{user.staff_no}" already exists: {user.staff_name}{resigned}.'
+
+
+@router.post("/compare")
+async def compare_staff_ids(form: Form, db: DB, _: StaffAdmin):
+    """Compares a list of Staff IDs with LDMS. Read-only."""
+    file = ffile(form, "file")
+    if file is None:
+        raise bad("Please choose an Excel file to upload.")
+    numbers = parse_staff_numbers(await file.read())
+    in_file = set(numbers)
+    staff = db.scalars(select(User).options(joinedload(User.department)).order_by(User.staff_no)).all()
+    registered = {u.staff_no for u in staff}
+
+    def brief(u: User) -> dict:
+        return {"staffNo": u.staff_no, "staffName": u.staff_name, "department": u.department.name if u.department else None}
+
+    resigned = [u for u in staff if u.staff_no in in_file and u.status == StaffStatus.RESIGN]
+    return {
+        "fileCount": len(numbers),
+        "matched": sum(1 for u in staff if u.staff_no in in_file and u.status == StaffStatus.ACTIVE),
+        "notRegistered": sorted(in_file - registered),
+        "resignedInSystem": [brief(u) for u in resigned],
+        "notInFile": [
+            brief(u)
+            for u in staff
+            if u.staff_no not in in_file and u.status == StaffStatus.ACTIVE and u.role_type != RoleType.ADMIN
+        ],
+    }
 
 
 @router.post("/bulk-upload")

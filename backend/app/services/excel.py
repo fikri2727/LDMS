@@ -87,6 +87,20 @@ def parse_staff_excel(data: bytes) -> list[dict]:
     return rows
 
 
+def parse_staff_numbers(data: bytes) -> list[str]:
+    """Just the Staff Nos, each once. Uses the Staff No column, or column A when the file has no header row."""
+    ws = open_first_sheet(data)
+    col = next((c.column for c in ws[1] if cell_text(c.value).lower() in STAFF_HEADER_ALIASES["staffNo"]), None)
+    numbers: dict[str, None] = {}
+    for r in range(2 if col else 1, ws.max_row + 1):
+        staff_no = normalize_staff_no(cell_text(ws.cell(r, col or 1).value))
+        if any(ch.isdigit() for ch in staff_no):  # skips blanks and an unrecognised header such as "ID"
+            numbers[staff_no] = None
+    if not numbers:
+        raise bad("No Staff IDs found. Put one Staff ID per row in the first column.")
+    return list(numbers)
+
+
 # ---------- OJT upload ----------
 # Matches the company's "template upload OJT.xlsx": detail values in column C (rows 3-10),
 # participant Staff Nos in column B from row 13.

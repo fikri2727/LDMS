@@ -4,7 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { requireSession } from "@/lib/guard";
 import { canManageStaff } from "@/lib/rbac";
 import { StaffUploadForm } from "@/components/staff/StaffUploadForm";
-import { bulkUploadStaff, previewStaffUpload } from "@/app/(app)/staff/actions";
+import { StaffCompareForm } from "@/components/staff/StaffCompareForm";
+import { bulkUploadStaff, compareStaffIds, previewStaffUpload } from "@/app/(app)/staff/actions";
 
 export default async function StaffUploadPage() {
   const session = await requireSession();
@@ -15,6 +16,15 @@ export default async function StaffUploadPage() {
       <Link href="/staff" className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary mb-4">
         <ArrowLeft size={15} /> Back to Staff List
       </Link>
+      <h2 className="text-xl font-semibold text-text-primary mb-2">Check Staff IDs</h2>
+      <p className="text-sm text-text-secondary mb-4 max-w-xl">
+        Upload an Excel file with one Staff ID per row to see who is not registered in LDMS yet. This only compares;
+        nothing is saved.
+      </p>
+      <StaffCompareForm action={compareStaffIds} />
+
+      <hr className="border-border my-8" />
+
       <h2 className="text-xl font-semibold text-text-primary mb-2">Upload Staff via Excel</h2>
       <p className="text-sm text-text-secondary mb-6 max-w-xl">
         Download the template and fill in one row per staff member. A Staff No that already exists updates that

@@ -80,6 +80,24 @@ export interface StaffSyncPreview {
   toResign: StaffSyncPerson[];
 }
 
+export interface StaffCompareResult {
+  fileCount: number;
+  matched: number;
+  notRegistered: string[];
+  resignedInSystem: StaffSyncPerson[];
+  notInFile: StaffSyncPerson[];
+}
+
+/** Compares a list of Staff IDs with LDMS, without changing anything. */
+export async function compareStaffIds(formData: FormData): Promise<{ result?: StaffCompareResult; error?: string }> {
+  try {
+    return { result: await api.post<StaffCompareResult>("/api/staff/compare", formData) };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.message };
+    throw err;
+  }
+}
+
 /** What an upload would do, without changing anything. */
 export async function previewStaffUpload(formData: FormData): Promise<{ preview?: StaffSyncPreview; error?: string }> {
   formData.set("preview", "1");

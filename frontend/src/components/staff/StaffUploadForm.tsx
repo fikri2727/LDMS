@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Download } from "lucide-react";
 import type { StaffSyncPerson, StaffSyncPreview } from "@/app/(app)/staff/actions";
 
-function PeopleList({ title, tone, people }: { title: string; tone: string; people: StaffSyncPerson[] }) {
+export function PeopleList({ title, tone, people }: { title: string; tone: string; people: StaffSyncPerson[] }) {
   if (people.length === 0) return null;
   return (
     <div>

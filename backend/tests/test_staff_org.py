@@ -153,6 +153,30 @@ def _full_list(db, skip=()):
     return _xlsx([[u.staff_no, "", "", "", ""] for u in active if u.staff_no not in skip])
 
 
+def test_compare_staff_ids_only(admin_client, db):
+    a, b, left = db.query(User).filter(User.role_type == RoleType.STAFF, User.status == StaffStatus.ACTIVE).order_by(User.id).limit(3).all()
+    left.status = StaffStatus.RESIGN
+    db.flush()
+    active_before = db.query(User).filter(User.status == StaffStatus.ACTIVE).count()
+
+    wb = Workbook()  # no header row, one ID twice, and a number Excel stripped the zeros from
+    for v in [a.staff_no, a.staff_no, b.staff_no, left.staff_no, 987]:
+        wb.active.append([v])
+    buf = io.BytesIO()
+    wb.save(buf)
+    r = admin_client.post("/api/staff/compare", files={"file": ("ids.xlsx", buf.getvalue())})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["fileCount"] == 4 and body["matched"] == 2
+    assert body["notRegistered"] == ["000987"]
+    assert [x["staffNo"] for x in body["resignedInSystem"]] == [left.staff_no]
+    not_in_file = {x["staffNo"] for x in body["notInFile"]}
+    assert a.staff_no not in not_in_file and "ADMIN01" not in not_in_file
+    assert len(not_in_file) >= active_before - 3
+    db.expire_all()
+    assert db.query(User).filter(User.status == StaffStatus.ACTIVE).count() == active_before
+
+
 def test_sync_resign_preview_then_apply(admin_client, db):
     gone, back = db.query(User).filter(User.role_type == RoleType.STAFF, User.status == StaffStatus.ACTIVE).order_by(User.id).limit(2).all()
     back.status = StaffStatus.RESIGN
