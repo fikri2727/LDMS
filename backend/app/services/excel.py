@@ -41,8 +41,8 @@ def normalize_staff_no(raw: str) -> str:
 
 
 STAFF_HEADER_ALIASES: dict[str, list[str]] = {
-    "staffNo": ["staff no", "staff no.", "staffno"],
-    "staffName": ["staff name", "full name", "name"],
+    "staffNo": ["staff no", "staff no.", "staffno", "staff id", "employee no", "employee no.", "employee id", "emp no"],
+    "staffName": ["staff name", "full name", "name", "employee name"],
     "email": ["email"],
     "gender": ["gender"],
     "designation": ["designation"],

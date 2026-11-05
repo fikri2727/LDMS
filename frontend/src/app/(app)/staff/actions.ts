@@ -55,7 +55,38 @@ export async function deleteStaff(id: number) {
  * Bulk-import/update staff from an Excel file (see staff-upload-template.xlsx).
  * Matched by Staff No; all-or-nothing — every problem is reported together.
  */
-export async function bulkUploadStaff(formData: FormData) {
-  await api.post("/api/staff/bulk-upload", formData);
+export async function bulkUploadStaff(formData: FormData): Promise<{ error?: string }> {
+  try {
+    await api.post("/api/staff/bulk-upload", formData);
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.message };
+    throw err;
+  }
   revalidatePath("/staff");
+  return {};
+}
+
+export interface StaffSyncPerson {
+  staffNo: string;
+  staffName: string;
+  department?: string | null;
+  isHod?: boolean;
+}
+
+export interface StaffSyncPreview {
+  new: StaffSyncPerson[];
+  updated: number;
+  reactivated: StaffSyncPerson[];
+  toResign: StaffSyncPerson[];
+}
+
+/** What an upload would do, without changing anything. */
+export async function previewStaffUpload(formData: FormData): Promise<{ preview?: StaffSyncPreview; error?: string }> {
+  formData.set("preview", "1");
+  try {
+    return { preview: await api.post<StaffSyncPreview>("/api/staff/bulk-upload", formData) };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.message };
+    throw err;
+  }
 }

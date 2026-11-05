@@ -1,8 +1,9 @@
 import io
+from datetime import datetime
 
 from openpyxl import Workbook
 
-from app.models import Department, Division, StaffStatus, User
+from app.models import Department, Division, RoleType, StaffStatus, User
 from tests.conftest import login_as
 
 
@@ -145,3 +146,57 @@ def test_check_staff_no(client, admin_client, db, staff_user):
     db.flush()
     r = admin_client.post("/api/staff", data={"staffNo": staff_user.staff_no, "staffName": "x", "gender": "MALE", "designation": "EXECUTIVE"})
     assert r.status_code == 400 and r.json()["detail"].endswith("(resigned).")
+
+
+def _full_list(db, skip=()):
+    active = db.query(User).filter(User.status == StaffStatus.ACTIVE).all()
+    return _xlsx([[u.staff_no, "", "", "", ""] for u in active if u.staff_no not in skip])
+
+
+def test_sync_resign_preview_then_apply(admin_client, db):
+    gone, back = db.query(User).filter(User.role_type == RoleType.STAFF, User.status == StaffStatus.ACTIVE).order_by(User.id).limit(2).all()
+    back.status = StaffStatus.RESIGN
+    back.date_resign = datetime(2026, 1, 1)
+    db.flush()
+    data = _xlsx([[u.staff_no, "", "", "", ""] for u in db.query(User).filter(User.status == StaffStatus.ACTIVE, User.id != gone.id)]
+                 + [[back.staff_no, "", "", "", ""], ["ZZ6666", "sync new", "Male", "Executive", ""]])
+
+    r = admin_client.post("/api/staff/bulk-upload", data={"syncResign": "1", "preview": "1"}, files={"file": ("s.xlsx", data)})
+    assert r.status_code == 200, r.text
+    p = r.json()
+    assert [x["staffNo"] for x in p["toResign"]] == [gone.staff_no]
+    assert [x["staffNo"] for x in p["reactivated"]] == [back.staff_no]
+    assert [x["staffNo"] for x in p["new"]] == ["ZZ6666"]
+    db.expire_all()
+    assert gone.status == StaffStatus.ACTIVE and back.status == StaffStatus.RESIGN  # preview wrote nothing
+    assert db.query(User).filter_by(staff_no="ZZ6666").count() == 0
+
+    r = admin_client.post("/api/staff/bulk-upload", data={"syncResign": "1"}, files={"file": ("s.xlsx", data)})
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    assert gone.status == StaffStatus.RESIGN and gone.date_resign is not None
+    assert back.status == StaffStatus.ACTIVE and back.date_resign is None
+
+
+def test_sync_resign_keeps_admins_and_refuses_partial_files(admin_client, db, admin):
+    r = admin_client.post("/api/staff/bulk-upload", data={"syncResign": "1", "preview": "1"},
+                          files={"file": ("s.xlsx", _full_list(db, skip={admin.staff_no}))})
+    assert r.status_code == 200, r.text
+    assert r.json()["toResign"] == []
+
+    one = db.query(User).filter(User.role_type == RoleType.STAFF, User.status == StaffStatus.ACTIVE).first()
+    active_before = db.query(User).filter(User.status == StaffStatus.ACTIVE).count()
+    r = admin_client.post("/api/staff/bulk-upload", data={"syncResign": "1"}, files={"file": ("s.xlsx", _xlsx([[one.staff_no, "", "", "", ""]]))})
+    assert r.status_code == 400 and "full staff list" in r.json()["detail"]
+    db.expire_all()
+    assert db.query(User).filter(User.status == StaffStatus.ACTIVE).count() == active_before
+
+
+def test_upload_without_sync_resigns_nobody_and_matches_hr_department_text(admin_client, db):
+    dept = db.query(Department).filter(Department.short_name.isnot(None)).first()
+    active_before = db.query(User).filter(User.status == StaffStatus.ACTIVE).count()
+    data = _xlsx([["ZZ5555", "hr dept", "Female", "Executive", f"  {dept.short_name}  -  SOME OTHER SPELLING "]])
+    assert admin_client.post("/api/staff/bulk-upload", files={"file": ("s.xlsx", data)}).status_code == 200
+    db.expire_all()
+    assert db.query(User).filter_by(staff_no="ZZ5555").one().department_id == dept.id
+    assert db.query(User).filter(User.status == StaffStatus.ACTIVE).count() == active_before + 1

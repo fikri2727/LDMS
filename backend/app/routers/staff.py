@@ -297,10 +297,16 @@ def _duplicate_message(user: User) -> str:
 async def bulk_upload_staff(form: Form, db: DB, session: StaffAdmin):
     """Bulk-import/update staff from Excel. Matched by Staff No: existing -> update (blank cells leave
     values unchanged); new -> create with the default password. All-or-nothing: every problem is
-    reported together and nothing is written if any row fails."""
+    reported together and nothing is written if any row fails.
+
+    syncResign=1 treats the file as the full list of current staff: active staff missing from it are
+    marked Resigned, and resigned staff back in it become Active (a Status cell in the file still wins).
+    Admin accounts are never resigned this way. preview=1 returns what would happen, writing nothing."""
     file = ffile(form, "file")
     if file is None:
         raise bad("Please choose an Excel file to upload.")
+    sync_resign = fstr(form, "syncResign") == "1"
+    preview = fstr(form, "preview") == "1"
     rows = parse_staff_excel(await file.read())
 
     seen: set[str] = set()
@@ -317,8 +323,12 @@ async def bulk_upload_staff(form: Form, db: DB, session: StaffAdmin):
     hod_by_dept = {d.id: d.hod_user_id for d in departments}
 
     def match(units, needle: str):
-        n = needle.strip().upper()
-        return next((x for x in units if (x.short_name and x.short_name.upper() == n) or x.name.upper() == n), None)
+        n = " ".join(needle.upper().split())
+        code = n.split(" - ")[0]  # HR reports write "A002 - HUMAN RESOURCES": fall back to the code alone
+        return next(
+            (x for x in units if (x.short_name and x.short_name.upper() == n) or " ".join(x.name.upper().split()) == n),
+            None,
+        ) or next((x for x in units if x.short_name and x.short_name.upper() == code), None)
 
     errors: list[str] = []
     resolved: list[dict] = []
@@ -396,6 +406,47 @@ async def bulk_upload_staff(form: Form, db: DB, session: StaffAdmin):
     if errors:
         raise bad("\n".join(errors))
 
+    to_resign: list[User] = []
+    reactivated: list[User] = []
+    if sync_resign:
+        active = db.scalars(select(User).where(User.status == StaffStatus.ACTIVE).order_by(User.staff_no)).all()
+        to_resign = [u for u in active if u.staff_no not in seen and u.role_type != RoleType.ADMIN]
+        # A file missing most of the staff is a partial list, not everyone resigning at once.
+        if len(to_resign) * 2 > len(active):
+            raise bad(
+                f"This file would mark {len(to_resign)} of {len(active)} active staff as Resigned, so it doesn't "
+                "look like the full staff list. Nothing was changed."
+            )
+        for r in resolved:
+            u = existing_by_no.get(r["row"]["staffNo"])
+            if u and u.status == StaffStatus.RESIGN and "status" not in r:
+                r["status"] = "ACTIVE"
+                reactivated.append(u)
+
+    if preview:
+        dept_name = {d.id: d.name for d in departments}
+
+        def changed(r: dict) -> bool:
+            u = existing_by_no[r["row"]["staffNo"]]
+            attrs = ("staff_name", "email", "nationality", "division_id", "department_id", "section_id", "supervisor_id",
+                     "gender", "designation", "role_type", "status")
+            return any(a in r and r[a] != getattr(u, a) for a in attrs)
+
+        def brief(u: User) -> dict:
+            return {
+                "staffNo": u.staff_no,
+                "staffName": u.staff_name,
+                "department": dept_name.get(u.department_id),
+                "isHod": u.is_hod,
+            }
+
+        return {
+            "new": [{"staffNo": r["row"]["staffNo"], "staffName": r["staff_name"]} for r in resolved if r["isNew"]],
+            "updated": sum(1 for r in resolved if not r["isNew"] and changed(r)),
+            "reactivated": [brief(u) for u in reactivated],
+            "toResign": [brief(u) for u in to_resign],
+        }
+
     default_hash = hash_password(DEFAULT_STAFF_PASSWORD) if any(r["isNew"] for r in resolved) else ""
     touched: set[int] = set()
     for r in resolved:
@@ -433,17 +484,25 @@ async def bulk_upload_staff(form: Form, db: DB, session: StaffAdmin):
                 u.role_type = RoleType(r["role_type"])
             if "status" in r:
                 u.status = StaffStatus(r["status"])
+                if u.status == StaffStatus.ACTIVE:
+                    u.date_resign = None
+                elif u.date_resign is None:
+                    u.date_resign = now_utc()
             if "department_id" in r:
                 u.department_id = dept_id
                 u.hod_id = hod_by_dept.get(dept_id) if dept_id else None
         if dept_id:
             touched.add(dept_id)
 
+    for u in to_resign:
+        u.status = StaffStatus.RESIGN
+        u.date_resign = now_utc()
+
     db.flush()
     for dept_id in touched:
         sync_department_hod(db, dept_id)
     db.commit()
-    return {"ok": True, "count": len(resolved)}
+    return {"ok": True, "count": len(resolved), "resigned": len(to_resign), "reactivated": len(reactivated)}
 
 
 @router.post("/{staff_id}")

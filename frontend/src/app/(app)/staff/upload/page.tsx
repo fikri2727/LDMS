@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { requireSession } from "@/lib/guard";
 import { canManageStaff } from "@/lib/rbac";
 import { StaffUploadForm } from "@/components/staff/StaffUploadForm";
-import { bulkUploadStaff } from "@/app/(app)/staff/actions";
+import { bulkUploadStaff, previewStaffUpload } from "@/app/(app)/staff/actions";
 
 export default async function StaffUploadPage() {
   const session = await requireSession();
@@ -21,8 +21,10 @@ export default async function StaffUploadPage() {
         profile — blank cells leave the existing value unchanged. A Staff No that doesn&apos;t exist yet creates a
         new staff record with the default password. See the Instructions sheet in the template for the accepted
         values in each column.
+        Tick the box below when the file is your full current staff list, to also detect who has left. You
+        will see every change before anything is saved.
       </p>
-      <StaffUploadForm action={bulkUploadStaff} />
+      <StaffUploadForm action={bulkUploadStaff} previewAction={previewStaffUpload} />
     </div>
   );
 }
