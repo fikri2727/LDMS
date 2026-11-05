@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app.deps import DB, require
-from app.forms import Form, bad, fdate, ffile, fint, fopt, fstr
+from app.forms import Form, bad, fall, fdate, ffile, fint, fopt, fstr
 from app.labels import DESIGNATION_LABELS, FUNCTION_LABELS, GENDER_LABELS, ROLE_LABELS, STATUS_LABELS, enum_from_label
 from app.models import (
     Department,
@@ -305,7 +305,12 @@ async def compare_staff_ids(form: Form, db: DB, _: StaffAdmin):
     registered = {u.staff_no for u in staff}
 
     def brief(u: User) -> dict:
-        return {"staffNo": u.staff_no, "staffName": u.staff_name, "department": u.department.name if u.department else None}
+        return {
+            "staffNo": u.staff_no,
+            "staffName": u.staff_name,
+            "department": u.department.name if u.department else None,
+            "isHod": u.is_hod,
+        }
 
     resigned = [u for u in staff if u.staff_no in in_file and u.status == StaffStatus.RESIGN]
     return {
@@ -319,6 +324,25 @@ async def compare_staff_ids(form: Form, db: DB, _: StaffAdmin):
             if u.staff_no not in in_file and u.status == StaffStatus.ACTIVE and u.role_type != RoleType.ADMIN
         ],
     }
+
+
+@router.post("/bulk-resign")
+def bulk_resign_staff(form: Form, db: DB, session: StaffAdmin):
+    """Marks the chosen active staff as Resigned, dated today. All-or-nothing. Admin accounts are refused."""
+    numbers = set(fall(form, "staffNo"))
+    if not numbers:
+        raise bad("Please tick at least one staff member.")
+    staff = db.scalars(select(User).where(User.staff_no.in_(numbers), User.status == StaffStatus.ACTIVE)).all()
+    missing = numbers - {u.staff_no for u in staff}
+    if missing:
+        raise bad(f"Not active staff: {', '.join(sorted(missing))}. Nothing was changed.")
+    if any(u.role_type == RoleType.ADMIN or u.id == session.id for u in staff):
+        raise bad("Admin accounts can't be resigned here. Nothing was changed.")
+    for u in staff:
+        u.status = StaffStatus.RESIGN
+        u.date_resign = now_utc()
+    db.commit()
+    return {"ok": True, "count": len(staff)}
 
 
 @router.post("/bulk-upload")

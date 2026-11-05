@@ -5,7 +5,7 @@ import { requireSession } from "@/lib/guard";
 import { canManageStaff } from "@/lib/rbac";
 import { StaffUploadForm } from "@/components/staff/StaffUploadForm";
 import { StaffCompareForm } from "@/components/staff/StaffCompareForm";
-import { bulkUploadStaff, compareStaffIds, previewStaffUpload } from "@/app/(app)/staff/actions";
+import { bulkResignStaff, bulkUploadStaff, compareStaffIds, previewStaffUpload } from "@/app/(app)/staff/actions";
 
 export default async function StaffUploadPage() {
   const session = await requireSession();
@@ -18,10 +18,10 @@ export default async function StaffUploadPage() {
       </Link>
       <h2 className="text-xl font-semibold text-text-primary mb-2">Check Staff IDs</h2>
       <p className="text-sm text-text-secondary mb-4 max-w-xl">
-        Upload an Excel file with one Staff ID per row to see who is not registered in LDMS yet. This only compares;
-        nothing is saved.
+        Upload an Excel file with one Staff ID per row to see who is not registered in LDMS yet. Comparing saves
+        nothing. You can then tick staff who are missing from your file and mark them as Resigned.
       </p>
-      <StaffCompareForm action={compareStaffIds} />
+      <StaffCompareForm action={compareStaffIds} resignAction={bulkResignStaff} />
 
       <hr className="border-border my-8" />
 

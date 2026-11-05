@@ -98,6 +98,20 @@ export async function compareStaffIds(formData: FormData): Promise<{ result?: St
   }
 }
 
+/** Marks the ticked staff as Resigned, dated today. */
+export async function bulkResignStaff(staffNos: string[]): Promise<{ error?: string }> {
+  const formData = new FormData();
+  staffNos.forEach((no) => formData.append("staffNo", no));
+  try {
+    await api.post("/api/staff/bulk-resign", formData);
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.message };
+    throw err;
+  }
+  revalidatePath("/staff");
+  return {};
+}
+
 /** What an upload would do, without changing anything. */
 export async function previewStaffUpload(formData: FormData): Promise<{ preview?: StaffSyncPreview; error?: string }> {
   formData.set("preview", "1");

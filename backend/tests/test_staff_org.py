@@ -177,6 +177,29 @@ def test_compare_staff_ids_only(admin_client, db):
     assert db.query(User).filter(User.status == StaffStatus.ACTIVE).count() == active_before
 
 
+def test_bulk_resign_chosen_staff(admin_client, db, admin):
+    a, b, other = db.query(User).filter(User.role_type == RoleType.STAFF, User.status == StaffStatus.ACTIVE).order_by(User.id).limit(3).all()
+
+    r = admin_client.post("/api/staff/bulk-resign", data={"staffNo": [a.staff_no, admin.staff_no]})
+    assert r.status_code == 400 and "Admin" in r.json()["detail"]
+    r = admin_client.post("/api/staff/bulk-resign", data={"staffNo": [a.staff_no, "NOSUCH"]})
+    assert r.status_code == 400 and "NOSUCH" in r.json()["detail"]
+    db.expire_all()
+    assert a.status == StaffStatus.ACTIVE  # refused means nobody changed
+
+    r = admin_client.post("/api/staff/bulk-resign", data={"staffNo": [a.staff_no, b.staff_no]})
+    assert r.status_code == 200 and r.json()["count"] == 2
+    db.expire_all()
+    assert a.status == b.status == StaffStatus.RESIGN and a.date_resign is not None
+    assert other.status == StaffStatus.ACTIVE
+
+
+def test_bulk_resign_needs_staff_admin(client, db):
+    staff = db.query(User).filter(User.role_type == RoleType.STAFF, User.status == StaffStatus.ACTIVE).first()
+    r = login_as(client, staff).post("/api/staff/bulk-resign", data={"staffNo": [staff.staff_no]})
+    assert r.status_code == 403
+
+
 def test_sync_resign_preview_then_apply(admin_client, db):
     gone, back = db.query(User).filter(User.role_type == RoleType.STAFF, User.status == StaffStatus.ACTIVE).order_by(User.id).limit(2).all()
     back.status = StaffStatus.RESIGN
