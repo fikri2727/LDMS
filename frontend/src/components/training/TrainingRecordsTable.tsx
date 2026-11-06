@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useSessionText } from "@/lib/useSessionText";
 import { Search, Eye, Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { PROGRAM_LABELS, PLATFORM_LABELS, FUNCTION_LABELS } from "@/lib/labels";
@@ -76,7 +77,7 @@ export function TrainingRecordsTable({ rows }: { rows: TrainingRow[] }) {
   const [endFilter, setEndFilter] = useState("");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useSessionText("training-records-search");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [sortKey, setSortKey] = useState<SortKey | null>(null);

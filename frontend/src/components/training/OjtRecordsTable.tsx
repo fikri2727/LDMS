@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useSessionText } from "@/lib/useSessionText";
 import { Search, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { deleteOjt } from "@/app/(app)/training/ojt/actions";
@@ -58,7 +59,7 @@ export function OjtRecordsTable({ rows }: { rows: OjtRow[] }) {
   const [endFilter, setEndFilter] = useState("");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useSessionText("ojt-records-search");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
