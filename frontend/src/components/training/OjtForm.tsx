@@ -65,7 +65,7 @@ export function OjtForm({
 
   return (
     <form action={action} className="space-y-6 max-w-2xl">
-      <div>
+      <div data-tour="ojt-title">
         <label className="block text-sm font-medium text-text-secondary mb-1">Title</label>
         <input
           name="title"
@@ -75,7 +75,7 @@ export function OjtForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div data-tour="ojt-venue" className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">Venue</label>
           <input
@@ -131,7 +131,7 @@ export function OjtForm({
         )}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-tour="ojt-dates" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">Start Date</label>
           <input
@@ -184,7 +184,7 @@ export function OjtForm({
       )}
 
       {isNew && !canKeyInForOthers && (
-        <div className="border-t border-border pt-5">
+        <div data-tour="ojt-survey" className="border-t border-border pt-5">
           <input type="hidden" name="isSelf" value="1" />
           <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
             My Learning Survey
@@ -208,7 +208,9 @@ export function OjtForm({
         </div>
       )}
 
-      <SubmitButton label={submitLabel} />
+      <div data-tour="form-submit" className="w-fit">
+        <SubmitButton label={submitLabel} />
+      </div>
     </form>
   );
 }

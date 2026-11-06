@@ -46,6 +46,7 @@ export function MobileTabBar({
             <Link
               key={href}
               href={href}
+              data-tour={`nav:${href}`}
               aria-label={label}
               aria-current={active ? "page" : undefined}
               className={clsx(
@@ -60,6 +61,7 @@ export function MobileTabBar({
         })}
         <button
           type="button"
+          data-tour="user-menu"
           onClick={onMenu}
           aria-label="Menu and profile"
           aria-expanded={menuOpen}

@@ -35,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         canManageTna={canManageTna(session)}
         isSupervisor={supervisor}
         isElearningCreator={session.roleType === "CREATOR"}
+        isHod={session.isHod}
         staffName={session.staffName}
         staffNo={session.staffNo}
         roleLabel={roleLabel}

@@ -158,9 +158,11 @@ export function RequisitionForm({
 }) {
   return (
     <form action={action} className="space-y-5 max-w-2xl">
-      <ParticipantsField staffOptions={staffOptions} initialParticipants={initialParticipants} />
+      <div data-tour="req-participants">
+        <ParticipantsField staffOptions={staffOptions} initialParticipants={initialParticipants} />
+      </div>
 
-      <div>
+      <div data-tour="req-title">
         <RequiredLabel>Title</RequiredLabel>
         <input
           name="title"
@@ -171,7 +173,7 @@ export function RequisitionForm({
         />
       </div>
 
-      <div>
+      <div data-tour="req-date">
         <RequiredLabel>Date</RequiredLabel>
         <p className="text-xs text-text-muted mb-2">Click a start date, then click again for the end date (or the same day for a one-day training).</p>
         <DateRangePicker
@@ -226,7 +228,7 @@ export function RequisitionForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div data-tour="req-fees" className="grid grid-cols-2 gap-4">
         <div>
           <RequiredLabel>Fees (RM)</RequiredLabel>
           <input
@@ -304,7 +306,9 @@ export function RequisitionForm({
         />
       </div>
 
-      <SubmitButton label={submitLabel} />
+      <div data-tour="form-submit" className="w-fit">
+        <SubmitButton label={submitLabel} />
+      </div>
     </form>
   );
 }

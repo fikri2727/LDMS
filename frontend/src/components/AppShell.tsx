@@ -4,12 +4,26 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { KeyRound } from "lucide-react";
+import { Info, KeyRound } from "lucide-react";
 import clsx from "clsx";
 import { Sidebar } from "@/components/Sidebar";
 import { UserMenu } from "@/components/UserMenu";
 import { LogoutButton } from "@/components/LogoutButton";
 import { MobileTabBar } from "@/components/MobileTabBar";
+import { TutorialTour } from "@/components/tutorial/TutorialTour";
+import { getTutorialSteps } from "@/components/tutorial/steps";
+
+function TutorialButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-surface px-3 py-1.5 text-xs font-semibold text-primary-dark hover:bg-primary/10 transition-colors"
+    >
+      <Info size={14} /> Tutorial
+    </button>
+  );
+}
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -25,6 +39,7 @@ export function AppShell({
   canManageTna,
   isSupervisor,
   isElearningCreator,
+  isHod,
   staffName,
   staffNo,
   roleLabel,
@@ -38,12 +53,16 @@ export function AppShell({
   canManageTna: boolean;
   isSupervisor?: boolean;
   isElearningCreator?: boolean;
+  isHod?: boolean;
   staffName: string;
   staffNo: string;
   roleLabel: string;
   children: React.ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  // The tutorial is for everyone except the Administrator.
+  const showTutorial = !canManageTraining;
   const pathname = usePathname();
 
   // Close the phone menu sheet whenever navigation happens (link click, back/forward, etc.) —
@@ -81,13 +100,18 @@ export function AppShell({
   );
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div data-app-root className="flex h-screen overflow-hidden">
       {/* ---------- Phone: slim top bar ---------- */}
       <div className="lg:hidden fixed top-0 inset-x-0 z-30 h-14 flex items-center gap-3 bg-surface/90 backdrop-blur-md border-b border-border px-4">
         <Link href="/dashboard" aria-label="Go to dashboard">
           <Image src="/tamco-logo.png" alt="TAMCO" width={1024} height={305} unoptimized className="h-5 w-auto" />
         </Link>
         <span className="text-text-primary text-sm font-medium">L&D Management</span>
+        {showTutorial && (
+          <div className="ml-auto">
+            <TutorialButton onClick={() => setTutorialOpen(true)} />
+          </div>
+        )}
       </div>
 
       {/* ---------- Desktop: sidebar ---------- */}
@@ -112,7 +136,10 @@ export function AppShell({
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="hidden lg:flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-6">
           <div />
-          <UserMenu staffName={staffName} staffNo={staffNo} roleLabel={roleLabel} />
+          <div className="flex items-center gap-3">
+            {showTutorial && <TutorialButton onClick={() => setTutorialOpen(true)} />}
+            <UserMenu staffName={staffName} staffNo={staffNo} roleLabel={roleLabel} />
+          </div>
         </header>
         {/* The page never scrolls sideways (no "wobble" on phones); wide tables scroll inside their own box.
             relative: hidden form inputs (sr-only, e.g. the survey's 1-5 radios) are positioned inside this
@@ -171,6 +198,18 @@ export function AppShell({
       </div>
 
       <MobileTabBar initials={initials(staffName)} menuOpen={menuOpen} onMenu={() => setMenuOpen((o) => !o)} />
+
+      {tutorialOpen && (
+        <TutorialTour
+          steps={getTutorialSteps({
+            clerk: canManageOjt,
+            supervisor: !!isSupervisor,
+            hod: !!isHod,
+            creator: !!isElearningCreator,
+          })}
+          onClose={() => setTutorialOpen(false)}
+        />
+      )}
     </div>
   );
 }

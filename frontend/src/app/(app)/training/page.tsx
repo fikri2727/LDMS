@@ -124,7 +124,7 @@ export default async function TrainingIndexPage() {
 
   return (
     <div>
-      <div className="mb-6">
+      <div data-tour="my-stats" className="mb-6">
         <MyTrainingStats {...stats} />
       </div>
 
@@ -132,12 +132,13 @@ export default async function TrainingIndexPage() {
         <p className="text-text-muted text-sm">{rows.length} training record(s)</p>
         <Link
           href="/training/ojt/new?self=1"
+          data-tour="add-my-ojt"
           className="flex items-center gap-1.5 rounded-xl bg-primary-dark hover:bg-primary text-white text-sm font-medium px-4 py-2 transition-colors"
         >
           <Plus size={16} /> Add My OJT
         </Link>
       </div>
-      <MyTrainingTable rows={rows} />
+      <div data-tour="my-list"><MyTrainingTable rows={rows} /></div>
     </div>
   );
 }

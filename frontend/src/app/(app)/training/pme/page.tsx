@@ -52,6 +52,7 @@ export default async function PmeListPage() {
     <div>
       {!viewAll && (
         <>
+          <div data-tour="pme-team">
           <CollapsibleSection title={`My Team (${myTeam.length})`} defaultOpen={false}>
             {myTeam.length === 0 ? (
               <p className="text-sm text-text-muted">
@@ -89,16 +90,17 @@ export default async function PmeListPage() {
               </div>
             )}
           </CollapsibleSection>
+          </div>
 
           <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
             Performance Monitoring Evaluation List
           </h3>
-          <PendingPmeTable rows={pending} />
+          <div data-tour="pme-list"><PendingPmeTable rows={pending} /></div>
 
           <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
             Completed Evaluations
           </h3>
-          <PmeCompletedTable rows={completedRows} emptyLabel="No completed evaluations yet." />
+          <div data-tour="pme-done"><PmeCompletedTable rows={completedRows} emptyLabel="No completed evaluations yet." /></div>
         </>
       )}
 

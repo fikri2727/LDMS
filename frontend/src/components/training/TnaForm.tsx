@@ -307,7 +307,7 @@ export function TnaForm({
     <form action={action} className="space-y-8">
       <input type="hidden" name="payload" value={payload} />
 
-      <div className="bg-surface rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
+      <div data-tour="tna-scale" className="bg-surface rounded-2xl border border-border p-4 shadow-[var(--shadow-card)]">
         <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Level Description</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -332,7 +332,7 @@ export function TnaForm({
       </div>
 
       {TNA_SECTIONS.map((s) => (
-        <div key={s.key}>
+        <div key={s.key} data-tour={s.key === "ESG" ? "tna-section" : undefined}>
           <h3 className="text-sm font-semibold text-text-primary mb-2">{s.label}</h3>
           <SectionTable
             options={trainingOptions[s.key]}
@@ -343,7 +343,11 @@ export function TnaForm({
         </div>
       ))}
 
-      {!readOnly && <SubmitButton label={submitLabel} />}
+      {!readOnly && (
+        <div data-tour="form-submit" className="w-fit">
+          <SubmitButton label={submitLabel} />
+        </div>
+      )}
     </form>
   );
 }

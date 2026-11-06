@@ -104,7 +104,7 @@ export default async function LearnerDashboardPage() {
         <p className="text-text-secondary text-sm mt-1">Good day, {session.staffName.split(" ")[0]}.</p>
       </div>
 
-      <div className="mb-10">
+      <div data-tour="el-modules" className="mb-10">
         <LearningModules modules={modules} />
       </div>
 

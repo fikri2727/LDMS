@@ -122,31 +122,36 @@ export default async function RequisitionIndexPage() {
         </div>
         <Link
           href="/requisition/new"
+          data-tour="req-new"
           className="flex items-center gap-1.5 rounded-xl bg-primary-dark text-white text-sm font-medium px-4 py-2 hover:bg-primary transition-colors"
         >
           <Plus size={16} /> New Application
         </Link>
       </div>
 
-      <div className="mb-8">
+      <div data-tour="req-stats" className="mb-8">
         <p className="text-xs text-text-muted mb-2">{viewAll ? "Organization-wide totals" : "Your applications"}</p>
         <RequisitionStats {...stats} />
       </div>
 
       {isHodReviewer && (
-        <RequisitionBoard
-          title="Pending Your Approval"
-          requisitions={pendingCards}
-          showApplicant
-          emptyLabel="Nothing pending your approval right now."
-        />
+        <div data-tour="req-pending">
+          <RequisitionBoard
+            title="Pending Your Approval"
+            requisitions={pendingCards}
+            showApplicant
+            emptyLabel="Nothing pending your approval right now."
+          />
+        </div>
       )}
 
-      <RequisitionBoard
-        title="My Applications"
-        requisitions={myCards}
-        emptyLabel="You haven't submitted any training requisitions yet."
-      />
+      <div data-tour="req-mine">
+        <RequisitionBoard
+          title="My Applications"
+          requisitions={myCards}
+          emptyLabel="You haven't submitted any training requisitions yet."
+        />
+      </div>
 
       {viewAll && (
         <RequisitionBoard

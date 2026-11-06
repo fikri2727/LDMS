@@ -141,7 +141,7 @@ export function ModuleForm({
   const selectedPresetSrc = CERTIFICATE_PRESETS.find((p) => p.id === selectedPreset)?.src;
 
   return (
-    <form action={action} className="space-y-6 max-w-2xl">
+    <form data-tour="el-module-form" action={action} className="space-y-6 max-w-2xl">
       <div>
         <label className="block text-sm font-medium text-text-secondary mb-1">Module Title</label>
         <input

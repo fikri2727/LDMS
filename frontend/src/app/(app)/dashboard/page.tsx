@@ -72,11 +72,11 @@ export default async function DashboardPage({
         <DateRangeFilter start={range.start.toISOString().slice(0, 10)} end={range.end.toISOString().slice(0, 10)} />
       </div>
 
-      <div className="mb-3">
+      <div data-tour="dash-tiles" className="mb-3">
         <OverviewTiles overview={overview} showStaffTrained={orgWide} balanceHours={balanceHours} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+      <div data-tour="dash-charts" className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
         <DashboardCard title="Public / Inhouse vs OJT vs E-Learning" icon={PieChartIcon} accent="#46BEA2">
           <PublicOjtPie data={split} />
         </DashboardCard>
@@ -92,7 +92,7 @@ export default async function DashboardPage({
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
+      <div data-tour="dash-department" className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
         <DashboardCard
           title={orgWide ? "Department Avg. Training Hours / Staff" : "My Monthly Hours"}
           icon={BarChart3}

@@ -84,7 +84,7 @@ export function LearningModules({ modules }: { modules: LearningModuleCardData[]
         />
       </div>
 
-      <div className="mb-5 max-w-sm">
+      <div data-tour="el-search" className="mb-5 max-w-sm">
         <SearchModules value={search} onChange={setSearch} />
       </div>
 
