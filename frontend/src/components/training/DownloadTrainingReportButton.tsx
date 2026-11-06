@@ -73,6 +73,7 @@ export interface OjtReportRow {
   comp: number;
   pend: number;
   abs: number;
+  employeeId: string;
   participantName: string;
   /** The participant's own OJT evaluation answers — ratings are whole numbers 1-5. */
   skillBefore: number | null;
@@ -97,7 +98,7 @@ const PARTICIPANT_COLUMNS: { header: string; width: number }[] = [
   { header: "HRDC Allowance (RM)", width: 14 },
   { header: "HRDC Grant ID", width: 18 },
   { header: "Training Provider", width: 22 },
-  { header: "Staff No", width: 12 },
+  { header: "Employee ID", width: 12 },
   { header: "Staff Name", width: 24 },
   { header: "Department", width: 20 },
   { header: "Designation", width: 16 },
@@ -133,6 +134,7 @@ const OJT_COLUMNS: { header: string; width: number }[] = [
   { header: "End Time", width: 10 },
   { header: "Days", width: 8 },
   { header: "Hours/Day", width: 10 },
+  { header: "Employee ID", width: 12 },
   { header: "Participant Names", width: 28 },
   { header: "Completed", width: 12 },
   { header: "Pending", width: 10 },
@@ -225,6 +227,7 @@ export function DownloadTrainingReportButton({
           r.endTime,
           r.totalDay,
           r.totalHour,
+          r.employeeId,
           r.participantName,
           r.comp,
           r.pend,

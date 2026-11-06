@@ -152,13 +152,14 @@ export default async function PublicTrainingListPage() {
 
       if (o.participants.length === 0) {
         return [
-          { ...shared, ojtGroupNo: ojtIndex + 1, participantName: "—", skillBefore: null, skillAfter: null, whatLearned: null },
+          { ...shared, ojtGroupNo: ojtIndex + 1, employeeId: "—", participantName: "—", skillBefore: null, skillAfter: null, whatLearned: null },
         ];
       }
 
       return o.participants.map((p, pIndex) => ({
         ...shared,
         ojtGroupNo: pIndex === 0 ? ojtIndex + 1 : null,
+        employeeId: p.user.staffNo,
         participantName: p.user.staffName,
         // This participant's own answers: skill rating before/after the OJT (1-5) and what they learned
         skillBefore: p.q2,
