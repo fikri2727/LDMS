@@ -10,8 +10,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { UserMenu } from "@/components/UserMenu";
 import { LogoutButton } from "@/components/LogoutButton";
 import { MobileTabBar } from "@/components/MobileTabBar";
-import { TutorialTour } from "@/components/tutorial/TutorialTour";
-import { getTutorialSteps } from "@/components/tutorial/steps";
+import { TutorialTour, findTarget } from "@/components/tutorial/TutorialTour";
+import { getTutorialSteps, type TutorialStep } from "@/components/tutorial/steps";
 
 function TutorialButton({ onClick }: { onClick: () => void }) {
   return (
@@ -60,9 +60,7 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [tutorialOpen, setTutorialOpen] = useState(false);
-  // The tutorial is for everyone except the Administrator.
-  const showTutorial = !canManageTraining;
+  const [tutorialSteps, setTutorialSteps] = useState<TutorialStep[] | null>(null);
   const pathname = usePathname();
 
   // Close the phone menu sheet whenever navigation happens (link click, back/forward, etc.) —
@@ -71,7 +69,14 @@ export function AppShell({
   if (pathname !== lastPathname) {
     setLastPathname(pathname);
     setMenuOpen(false);
+    setTutorialSteps(null);
   }
+
+  // Each page has its own tutorial, for everyone except the Administrator.
+  const pageTutorial = canManageTraining ? [] : getTutorialSteps(pathname, { hod: !!isHod });
+  const showTutorial = pageTutorial.length > 0;
+  const startTutorial = () =>
+    setTutorialSteps(pageTutorial.filter((step) => !step.target || findTarget(step.target)));
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -109,7 +114,7 @@ export function AppShell({
         <span className="text-text-primary text-sm font-medium">L&D Management</span>
         {showTutorial && (
           <div className="ml-auto">
-            <TutorialButton onClick={() => setTutorialOpen(true)} />
+            <TutorialButton onClick={startTutorial} />
           </div>
         )}
       </div>
@@ -137,7 +142,7 @@ export function AppShell({
         <header className="hidden lg:flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-6">
           <div />
           <div className="flex items-center gap-3">
-            {showTutorial && <TutorialButton onClick={() => setTutorialOpen(true)} />}
+            {showTutorial && <TutorialButton onClick={startTutorial} />}
             <UserMenu staffName={staffName} staffNo={staffNo} roleLabel={roleLabel} />
           </div>
         </header>
@@ -199,16 +204,8 @@ export function AppShell({
 
       <MobileTabBar initials={initials(staffName)} menuOpen={menuOpen} onMenu={() => setMenuOpen((o) => !o)} />
 
-      {tutorialOpen && (
-        <TutorialTour
-          steps={getTutorialSteps({
-            clerk: canManageOjt,
-            supervisor: !!isSupervisor,
-            hod: !!isHod,
-            creator: !!isElearningCreator,
-          })}
-          onClose={() => setTutorialOpen(false)}
-        />
+      {tutorialSteps && tutorialSteps.length > 0 && (
+        <TutorialTour steps={tutorialSteps} onClose={() => setTutorialSteps(null)} />
       )}
     </div>
   );

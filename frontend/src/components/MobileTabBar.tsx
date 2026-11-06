@@ -46,7 +46,6 @@ export function MobileTabBar({
             <Link
               key={href}
               href={href}
-              data-tour={`nav:${href}`}
               aria-label={label}
               aria-current={active ? "page" : undefined}
               className={clsx(

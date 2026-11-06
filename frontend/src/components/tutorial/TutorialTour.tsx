@@ -2,12 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import type { TutorialStep } from "@/components/tutorial/steps";
 
-/** How long to wait for a page to open, then for its highlighted item, before showing the step in the middle. */
-const PAGE_WAIT_MS = 8000;
-const ITEM_WAIT_MS = 1500;
 const POPUP_WIDTH = 340;
 const POPUP_HEIGHT = 250; // room to keep free when choosing a side; the real height varies a little
 const GAP = 12;
@@ -27,10 +23,8 @@ interface View {
   height: number;
 }
 
-const currentPage = () => window.location.pathname + window.location.search;
-
 /** The menu exists twice (sidebar and phone sheet), so take the copy that is actually on show. */
-function findTarget(target: string) {
+export function findTarget(target: string) {
   return (
     [...document.querySelectorAll<HTMLElement>(`[data-tour="${target}"]`)].find((el) => {
       const r = el.getBoundingClientRect();
@@ -91,7 +85,6 @@ function popupStyle({ box, width, height }: View): React.CSSProperties {
 }
 
 export function TutorialTour({ steps, onClose }: { steps: TutorialStep[]; onClose: () => void }) {
-  const router = useRouter();
   const layerRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const [view, setView] = useState<View | null>(null);
@@ -99,7 +92,7 @@ export function TutorialTour({ steps, onClose }: { steps: TutorialStep[]; onClos
   const step = steps[index];
   const isLast = index === steps.length - 1;
   const ready = view?.index === index ? view : null;
-  const { page, target } = step;
+  const { target } = step;
 
   // Nothing behind the tutorial can be clicked, typed in or reached with the Tab key.
   useEffect(() => {
@@ -109,20 +102,11 @@ export function TutorialTour({ steps, onClose }: { steps: TutorialStep[]; onClos
   }, []);
 
   useEffect(() => {
-    if (page && currentPage() !== page) router.push(page);
-
-    const started = Date.now();
-    let arrived = 0;
     let scrolled = false;
     const timer = setInterval(() => {
       const layer = layerRef.current;
       if (!layer) return;
-      if (page && currentPage() !== page && Date.now() - started < PAGE_WAIT_MS) return;
-      arrived ||= Date.now();
-
       const el = target ? findTarget(target) : null;
-      if (target && !el && Date.now() - arrived < ITEM_WAIT_MS) return;
-
       if (el && !scrolled) {
         scrolled = true;
         const tall = el.getBoundingClientRect().height > layer.getBoundingClientRect().height * 0.6;
@@ -135,9 +119,9 @@ export function TutorialTour({ steps, onClose }: { steps: TutorialStep[]; onClos
         height: layer.offsetHeight,
       };
       setView((prev) => (sameView(prev, next) ? prev : next));
-    }, 120);
+    }, 100);
     return () => clearInterval(timer);
-  }, [index, page, target, router]);
+  }, [index, target]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -146,15 +130,6 @@ export function TutorialTour({ steps, onClose }: { steps: TutorialStep[]; onClos
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
-
-  function goNext() {
-    if (isLast) {
-      onClose();
-      router.push("/dashboard");
-    } else {
-      setIndex((i) => i + 1);
-    }
-  }
 
   return createPortal(
     <div ref={layerRef} className="fixed inset-0 z-[70]">
@@ -174,7 +149,7 @@ export function TutorialTour({ steps, onClose }: { steps: TutorialStep[]; onClos
         </p>
       </div>
 
-      {ready ? (
+      {ready && (
         <div
           role="dialog"
           aria-modal="true"
@@ -209,15 +184,13 @@ export function TutorialTour({ steps, onClose }: { steps: TutorialStep[]; onClos
             </button>
             <button
               type="button"
-              onClick={goNext}
+              onClick={() => (isLast ? onClose() : setIndex((i) => i + 1))}
               className="rounded-xl bg-primary-dark px-5 py-2 text-sm font-semibold text-white hover:bg-primary"
             >
               {isLast ? "Finish" : "Next"}
             </button>
           </div>
         </div>
-      ) : (
-        <p className="absolute inset-x-0 top-1/2 text-center text-sm font-medium text-white">Loading...</p>
       )}
     </div>,
     document.body
