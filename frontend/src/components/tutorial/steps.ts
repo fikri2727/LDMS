@@ -65,7 +65,7 @@ const TUTORIALS: { path: RegExp; steps: TutorialStep[] }[] = [
       {
         target: "add-my-ojt",
         title: "Add My OJT",
-        text: "Attended On-the-Job Training that nobody keyed in? Click here to add it yourself. The form has its own tutorial.",
+        text: "Attended On-the-Job Training that nobody keyed in? Click here to add it yourself. Not sure if it counts? Click What is OJT? beside it.",
       },
     ],
   },

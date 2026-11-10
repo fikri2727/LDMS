@@ -9,6 +9,7 @@ import { computeDays, computeHours } from "@/lib/training-code";
 import { attendedDayCount } from "@/lib/attendance";
 import { MyTrainingTable, type MyTrainingRow } from "@/components/training/MyTrainingTable";
 import { MyTrainingStats } from "@/components/training/MyTrainingStats";
+import { WhatIsOjtButton } from "@/components/training/WhatIsOjtButton";
 import type { Ojt, ParticipateOjt, Participation, Training } from "@/lib/db-types";
 
 interface MyTrainingData {
@@ -130,13 +131,16 @@ export default async function TrainingIndexPage() {
 
       <div className="flex items-center justify-between mb-4">
         <p className="text-text-muted text-sm">{rows.length} training record(s)</p>
-        <Link
-          href="/training/ojt/new?self=1"
-          data-tour="add-my-ojt"
-          className="flex items-center gap-1.5 rounded-xl bg-primary-dark hover:bg-primary text-white text-sm font-medium px-4 py-2 transition-colors"
-        >
-          <Plus size={16} /> Add My OJT
-        </Link>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <WhatIsOjtButton />
+          <Link
+            href="/training/ojt/new?self=1"
+            data-tour="add-my-ojt"
+            className="flex items-center gap-1.5 rounded-xl bg-primary-dark hover:bg-primary text-white text-sm font-medium px-4 py-2 transition-colors"
+          >
+            <Plus size={16} /> Add My OJT
+          </Link>
+        </div>
       </div>
       <div data-tour="my-list"><MyTrainingTable rows={rows} /></div>
     </div>
