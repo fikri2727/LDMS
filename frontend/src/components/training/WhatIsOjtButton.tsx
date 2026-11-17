@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { ArrowDown, ArrowRight, HelpCircle, X } from "lucide-react";
+import { ArrowDown, ArrowRight, Clock, HelpCircle, X } from "lucide-react";
 
 type Lang = "en" | "bm";
 const LANG_KEY = "ldms-ojt-info-lang";
@@ -190,7 +190,92 @@ function LangSwitch({ lang, onChange }: { lang: Lang; onChange: (l: Lang) => voi
   );
 }
 
-function OjtInfo({ lang, setLang, onClose }: { lang: Lang; setLang: (l: Lang) => void; onClose: () => void }) {
+const WHY_16: [string, string][] = [
+  [
+    "Every staff member must complete at least 16 training hours each year. It is a requirement for all staff.",
+    "Setiap staf wajib melengkapkan sekurang-kurangnya 16 jam latihan setiap tahun. Ia syarat untuk semua staf.",
+  ],
+  [
+    "All training types count: Public, Inhouse, OJT and E-Learning.",
+    "Semua jenis latihan dikira: Public, Inhouse, OJT dan E-Learning.",
+  ],
+  [
+    "Hours only count when the training is Complete. If HR or your clerk added you, click Evaluate in My Training to complete it.",
+    "Jam hanya dikira apabila latihan berstatus Complete. Jika HR atau kerani tambah nama anda, klik Evaluate di My Training untuk melengkapkannya.",
+  ],
+  [
+    "Check Balance Hours to Complete on your Dashboard to see how many hours you still need.",
+    "Semak Balance Hours to Complete di Dashboard untuk melihat baki jam yang perlu dicapai.",
+  ],
+  [
+    "Learned something at work this year? Record it as OJT. It adds to your hours.",
+    "Ada belajar sesuatu di tempat kerja tahun ini? Rekod sebagai OJT. Ia menambah jam anda.",
+  ],
+];
+
+/** A smaller popup on top of What is OJT?, explaining the 16-hour yearly requirement. */
+function Why16Popup({ onClose }: { onClose: () => void }) {
+  const t = useText();
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("Why 16 hours?", "Kenapa 16 jam?")}
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md max-h-[80vh] overflow-y-auto rounded-2xl bg-surface p-5 shadow-2xl"
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t("Close", "Tutup")}
+          className="absolute right-3 top-3 rounded-full p-1.5 text-text-muted hover:bg-gray-100"
+        >
+          <X size={18} />
+        </button>
+        <div className="flex items-center gap-3 pr-8">
+          <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-primary/10 text-primary-dark">
+            <span className="text-lg font-bold leading-none">16</span>
+            <span className="text-[10px] font-medium leading-none">{t("hours", "jam")}</span>
+          </span>
+          <h3 className="text-base font-semibold text-text-primary">{t("Why 16 hours?", "Kenapa 16 jam?")}</h3>
+        </div>
+        <ul className="mt-4 space-y-2 pl-5 text-sm text-text-primary list-disc">
+          {WHY_16.map(([en, bm]) => (
+            <li key={en}>{t(en, bm)}</li>
+          ))}
+        </ul>
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-primary-dark hover:bg-primary text-white text-sm font-medium px-5 py-2 transition-colors"
+          >
+            {t("Got it", "Faham")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OjtInfo({
+  lang,
+  setLang,
+  onClose,
+  onWhy16,
+}: {
+  lang: Lang;
+  setLang: (l: Lang) => void;
+  onClose: () => void;
+  onWhy16: () => void;
+}) {
   const t = useText();
   return (
     <>
@@ -214,6 +299,13 @@ function OjtInfo({ lang, setLang, onClose }: { lang: Lang; setLang: (l: Lang) =>
           "OJT (On-the-Job Training) ialah pembelajaran di tempat kerja, semasa waktu kerja, daripada rakan sekerja, penyelia atau jabatan lain. Setiap OJT dikira dalam 16 jam latihan setahun anda.",
         )}
       </p>
+      <button
+        type="button"
+        onClick={onWhy16}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-lg text-sm font-medium text-primary-dark underline underline-offset-2 hover:text-primary"
+      >
+        <Clock size={15} /> {t("Why 16 hours?", "Kenapa 16 jam?")}
+      </button>
 
       <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-text-primary">
         {t(
@@ -256,6 +348,7 @@ function OjtInfo({ lang, setLang, onClose }: { lang: Lang; setLang: (l: Lang) =>
 
 export function WhatIsOjtButton() {
   const [open, setOpen] = useState(false);
+  const [why16, setWhy16] = useState(false);
   const [lang, setLangState] = useState<Lang>("en");
 
   function setLang(l: Lang) {
@@ -270,11 +363,18 @@ export function WhatIsOjtButton() {
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Escape") return;
+      if (why16) setWhy16(false);
+      else setOpen(false);
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, why16]);
+
+  function close() {
+    setWhy16(false);
+    setOpen(false);
+  }
 
   return (
     <>
@@ -296,7 +396,7 @@ export function WhatIsOjtButton() {
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setOpen(false)}
+          onClick={close}
         >
           <div
             role="dialog"
@@ -307,9 +407,14 @@ export function WhatIsOjtButton() {
             className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl bg-surface p-6 shadow-xl"
           >
             <LangContext.Provider value={lang}>
-              <OjtInfo lang={lang} setLang={setLang} onClose={() => setOpen(false)} />
+              <OjtInfo lang={lang} setLang={setLang} onClose={close} onWhy16={() => setWhy16(true)} />
             </LangContext.Provider>
           </div>
+          {why16 && (
+            <LangContext.Provider value={lang}>
+              <Why16Popup onClose={() => setWhy16(false)} />
+            </LangContext.Provider>
+          )}
         </div>
       )}
     </>
