@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { StaffFilters } from "@/components/staff/StaffFilters";
 import { StaffTable } from "@/components/staff/StaffTable";
 import { DownloadStaffReportButton, type StaffReportRow } from "@/components/staff/DownloadStaffReportButton";
-import { Plus, Upload } from "lucide-react";
+import { Database, Plus, Upload } from "lucide-react";
 import type { User } from "@/lib/db-types";
 
 type StaffRow = User & {
@@ -62,6 +62,12 @@ export default async function StaffListPage({
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <DownloadStaffReportButton staffRows={staffRows} />
+          <Link
+            href="/staff/master"
+            className="flex items-center gap-1.5 rounded-xl border border-border text-sm font-medium px-4 py-2 text-text-secondary hover:bg-gray-50 transition-colors"
+          >
+            <Database size={16} /> Employee Master
+          </Link>
           <Link
             href="/staff/upload"
             className="flex items-center gap-1.5 rounded-xl border border-border text-sm font-medium px-4 py-2 text-text-secondary hover:bg-gray-50 transition-colors"

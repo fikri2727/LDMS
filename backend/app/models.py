@@ -11,7 +11,7 @@ Prisma's @updatedAt has no database default (Prisma sets it client-side), so
 import enum
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, Text, func
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -700,3 +700,44 @@ class RequisitionParticipant(Base):
 
     requisition: Mapped[TrainingRequisition] = relationship(back_populates="participants")
     user: Mapped[User] = relationship()
+
+
+# ---------- Employee Master (HR's list, shared with Appraisal; see services/employee_master.py) ----------
+
+
+class EmployeeMaster(Base):
+    """One row per employee from HR's report. LDMS's User table follows changes made here, never the other way."""
+
+    __tablename__ = "EmployeeMaster"
+
+    employee_no: Mapped[str] = mapped_column("employeeNo", Text, primary_key=True)
+    full_name: Mapped[str] = mapped_column("fullName", Text)
+    gender: Mapped[str | None] = mapped_column(Text)  # "M" / "F"
+    nationality: Mapped[str | None] = mapped_column(Text)
+    department: Mapped[str | None] = mapped_column(Text)
+    branch: Mapped[str | None] = mapped_column(Text)
+    category: Mapped[str | None] = mapped_column(Text)  # Office / Factory / Executive ...
+    employment_type: Mapped[str | None] = mapped_column("employmentType", Text)  # Permanent / Contract / Interns
+    status: Mapped[str | None] = mapped_column(Text)  # Confirmed / Probation / Resigned
+    job_position: Mapped[str | None] = mapped_column("jobPosition", Text)
+    job_grade: Mapped[str | None] = mapped_column("jobGrade", Text)
+    section: Mapped[str | None] = mapped_column(Text)
+    supervisor_no: Mapped[str | None] = mapped_column("supervisorNo", Text)
+    work_email: Mapped[str | None] = mapped_column("workEmail", Text)
+    date_joined: Mapped[datetime | None] = mapped_column("dateJoined", DateTime)
+    date_resigned: Mapped[datetime | None] = mapped_column("dateResigned", DateTime)
+    in_appraisal: Mapped[bool] = mapped_column("inAppraisal", Boolean, default=False)
+    created_at: Mapped[datetime] = created_at_col()
+    updated_at: Mapped[datetime] = updated_at_col()
+
+
+class EmployeeMasterImport(Base):
+    __tablename__ = "EmployeeMasterImport"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    file_name: Mapped[str | None] = mapped_column("fileName", Text)
+    uploaded_by_id: Mapped[int | None] = mapped_column("uploadedById", ForeignKey("User.id", ondelete="SET NULL"))
+    uploaded_at: Mapped[datetime] = mapped_column("uploadedAt", DateTime, server_default=func.now(), default=utcnow)
+    summary: Mapped[dict | None] = mapped_column(JSON)
+
+    uploaded_by: Mapped[User | None] = relationship()
