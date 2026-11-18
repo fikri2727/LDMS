@@ -64,6 +64,11 @@ def can_view_all_requisitions(u: User) -> bool:
     return u.role_type == RoleType.ADMIN
 
 
+def can_manage_master(u: User) -> bool:
+    """HR Master: Admins, plus staff an Admin gave HR Master access, upload the employee report."""
+    return u.role_type == RoleType.ADMIN or bool(u.hr_master)
+
+
 def permissions_for(u: User) -> dict[str, bool]:
     """All permission flags, sent to the frontend so it can show/hide menus and buttons."""
     return {
@@ -79,4 +84,5 @@ def permissions_for(u: User) -> dict[str, bool]:
         "canSubmitTna": can_submit_tna(u),
         "canReviewRequisitions": can_review_requisitions(u),
         "canViewAllRequisitions": can_view_all_requisitions(u),
+        "canManageMaster": can_manage_master(u),
     }

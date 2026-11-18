@@ -1,5 +1,10 @@
 import type { SessionData } from "@/lib/session";
 
+/** HR Master: Admins, plus staff an Admin gave HR Master access, upload the employee report. */
+export function canManageMaster(session: SessionData) {
+  return session.roleType === "ADMIN" || !!session.permissions?.canManageMaster;
+}
+
 /** Staff List module: manage staff records and org structure. */
 export function canManageStaff(session: SessionData) {
   return session.roleType === "ADMIN";

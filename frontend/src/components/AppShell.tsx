@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Info, KeyRound } from "lucide-react";
+import { Info, KeyRound, LayoutGrid } from "lucide-react";
 import clsx from "clsx";
 import { Sidebar } from "@/components/Sidebar";
 import { UserMenu } from "@/components/UserMenu";
@@ -140,7 +140,12 @@ export function AppShell({
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="hidden lg:flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-6">
-          <div />
+          <Link
+            href="/home"
+            className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-gray-50"
+          >
+            <LayoutGrid size={14} /> All apps
+          </Link>
           <div className="flex items-center gap-3">
             {showTutorial && <TutorialButton onClick={startTutorial} />}
             <UserMenu staffName={staffName} staffNo={staffNo} roleLabel={roleLabel} />
@@ -192,6 +197,12 @@ export function AppShell({
         </div>
         <div className="flex-1 overflow-y-auto py-3">{sidebar}</div>
         <div className="px-3 pt-2 border-t border-border">
+          <Link
+            href="/home"
+            className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-text-secondary hover:bg-gray-50 hover:text-text-primary transition-colors"
+          >
+            <LayoutGrid size={16} /> All apps
+          </Link>
           <Link
             href="/account"
             className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-text-secondary hover:bg-gray-50 hover:text-text-primary transition-colors"

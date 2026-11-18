@@ -9,7 +9,7 @@ from sqlalchemy.orm import joinedload
 from app.deps import DB, require
 from app.forms import Form, bad, ffile
 from app.models import EmployeeMaster, EmployeeMasterImport, User
-from app.rbac import can_manage_staff
+from app.rbac import can_manage_master
 from app.serialize import value
 from app.services.employee_master import (
     apply_plan,
@@ -20,16 +20,13 @@ from app.services.employee_master import (
 
 router = APIRouter(prefix="/api/employee-master", tags=["employee-master"])
 
-StaffAdmin = Annotated[
-    User,
-    Depends(
-        require(can_manage_staff, "You do not have permission to manage staff records.")
-    ),
+MasterAdmin = Annotated[
+    User, Depends(require(can_manage_master, "You do not have HR Master access."))
 ]
 
 
 @router.get("")
-def list_master(db: DB, _: StaffAdmin):
+def list_master(db: DB, _: MasterAdmin):
     rows = db.scalars(select(EmployeeMaster).order_by(EmployeeMaster.full_name)).all()
     names = {r.employee_no: r.full_name for r in rows}
     in_ldms = set(db.scalars(select(User.staff_no)).all())
@@ -78,13 +75,13 @@ async def _plan(form, db, session):
 
 
 @router.post("/preview")
-async def preview(form: Form, db: DB, session: StaffAdmin):
+async def preview(form: Form, db: DB, session: MasterAdmin):
     """What an upload would change. Writes nothing."""
     plan, _ = await _plan(form, db, session)
     return plan_summary(plan)
 
 
 @router.post("/apply")
-async def apply(form: Form, db: DB, session: StaffAdmin):
+async def apply(form: Form, db: DB, session: MasterAdmin):
     plan, name = await _plan(form, db, session)
     return apply_plan(db, plan, session, name)

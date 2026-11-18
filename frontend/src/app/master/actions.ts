@@ -43,7 +43,7 @@ export async function applyEmployeeMaster(formData: FormData): Promise<{ result?
     if (e instanceof ApiError) return { error: e.message };
     throw e;
   }
-  revalidatePath("/staff/master");
+  revalidatePath("/master");
   revalidatePath("/staff");
   return { result };
 }

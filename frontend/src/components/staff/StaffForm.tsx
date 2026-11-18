@@ -41,6 +41,7 @@ interface StaffInitial {
   sectionId?: number | null;
   supervisorId?: number | null;
   roleType?: string;
+  hrMaster?: boolean;
   status?: string;
   dateResign?: string | null;
 }
@@ -358,6 +359,20 @@ export function StaffForm({
             <p className="text-xs text-text-muted mt-1">
               Whether this staff is a Head of Department is set from the Organization page.
             </p>
+            <label className="mt-3 flex items-start gap-2 text-sm text-text-secondary">
+              <input
+                type="checkbox"
+                name="hrMaster"
+                defaultChecked={initial?.hrMaster ?? false}
+                className="mt-0.5 h-4 w-4 rounded border-border accent-primary-dark"
+              />
+              <span>
+                HR Master access
+                <span className="block text-xs text-text-muted">
+                  Can open the HR Master and upload the employee report. Admins always can.
+                </span>
+              </span>
+            </label>
           </div>
 
           {!isNew && (

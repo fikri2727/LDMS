@@ -271,6 +271,7 @@ def create_staff(form: Form, db: DB, _: StaffAdmin):
         section_id=fint(form, "sectionId"),
         supervisor_id=fint(form, "supervisorId"),
         role_type=_enum_or_400(RoleType, fstr(form, "roleType") or "STAFF", "role"),
+        hr_master=fstr(form, "hrMaster") == "on",
         password=hash_password(DEFAULT_STAFF_PASSWORD),
         password_is_default=True,
         hod_id=_resolve_hod_id(db, department_id),
@@ -601,6 +602,7 @@ def update_staff(staff_id: int, form: Form, db: DB, session: StaffAdmin):
     user.status = status
     user.date_resign = fdate(form, "dateResign") if status == StaffStatus.RESIGN else None
     user.role_type = role_type
+    user.hr_master = fstr(form, "hrMaster") == "on"
     user.hod_id = _resolve_hod_id(db, department_id)
     db.flush()
 

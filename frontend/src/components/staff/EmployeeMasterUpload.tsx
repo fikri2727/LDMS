@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { AlertTriangle } from "lucide-react";
-import type { MasterPreview } from "@/app/(app)/staff/master/actions";
+import type { MasterPreview } from "@/app/master/actions";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 function Stat({ label, value }: { label: string; value: number }) {

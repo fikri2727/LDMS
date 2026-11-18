@@ -229,6 +229,7 @@ class User(Base):
     # Org-chart purposes only — NOT used for PME (see supervisor_id).
     hod_id: Mapped[int | None] = mapped_column("hodId", ForeignKey("User.id", ondelete="SET NULL"))
     is_hod: Mapped[bool] = mapped_column("isHod", Boolean, default=False)
+    hr_master: Mapped[bool] = mapped_column("hrMaster", Boolean, default=False)
     role_type: Mapped[RoleType] = mapped_column("roleType", pg_enum(RoleType), default=RoleType.STAFF)
 
     # Individual reporting line — who performs this staff member's PME evaluation.

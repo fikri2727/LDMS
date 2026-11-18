@@ -209,3 +209,15 @@ def test_list(admin_client, db):
     body = r.json()
     assert body["lastImport"]["fileName"] == "Master Data.xlsx"
     assert body["rows"][0]["employeeNo"] == a.staff_no and body["rows"][0]["inLdms"]
+
+
+def test_hr_master_access_tick(client, staff_user, db):
+    from tests.conftest import login_as
+
+    login_as(client, staff_user)
+    assert client.get("/api/employee-master").status_code == 403
+    assert client.get("/api/auth/me").json()["permissions"]["canManageMaster"] is False
+    staff_user.hr_master = True
+    db.commit()
+    assert client.get("/api/employee-master").status_code == 200
+    assert client.get("/api/auth/me").json()["permissions"]["canManageMaster"] is True

@@ -38,6 +38,7 @@ export interface User {
   dateResign: Date | null;
   hodId: number | null;
   isHod: boolean;
+  hrMaster?: boolean;
   roleType: RoleType;
   supervisorId: number | null;
   createdAt: Date;

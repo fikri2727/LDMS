@@ -53,6 +53,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
           sectionId: staff.sectionId,
           supervisorId: staff.supervisorId,
           roleType: staff.roleType,
+          hrMaster: staff.hrMaster ?? false,
           status: staff.status,
           dateResign: staff.dateResign ? staff.dateResign.toISOString().slice(0, 10) : null,
         }}
