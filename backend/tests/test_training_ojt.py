@@ -156,6 +156,22 @@ def test_ojt_excel_staff_no_without_leading_zeros(admin_client, db):
     assert [p.user_id for p in db.get(Ojt, r.json()["id"]).participants] == [u.id]
 
 
+def test_ojt_excel_staff_no_with_typed_apostrophe(admin_client, db):
+    """'001622 typed into a Text cell keeps the apostrophe in the value - it must still match."""
+    users = db.query(User).filter(User.staff_no.op("~")("^[0-9]{6}$"), User.status == "ACTIVE").order_by(User.id).limit(2).all()
+    wb = Workbook()
+    ws = wb.active
+    ws["C3"], ws["C4"], ws["C5"], ws["C6"] = "apostrophe", "line 1", "Internal", "someone"
+    ws["C7"] = ws["C8"] = datetime(2026, 5, 4)
+    ws["C9"], ws["C10"] = "8:00 AM", "8:30 AM"
+    ws["B13"], ws["B14"] = "'" + users[0].staff_no, " ’" + users[1].staff_no + " "
+    buf = io.BytesIO()
+    wb.save(buf)
+    r = admin_client.post("/api/ojt/upload", files={"file": ("o.xlsx", buf.getvalue())})
+    assert r.status_code == 200, r.text
+    assert sorted(p.user_id for p in db.get(Ojt, r.json()["id"]).participants) == sorted(u.id for u in users)
+
+
 def test_public_checkin(client, db, admin_client, staff_user):
     tid = admin_client.post("/api/training/public", data=TRAINING_FORM).json()["id"]
     client.cookies.clear()
@@ -211,3 +227,50 @@ def test_training_provider(admin_client, db):
     assert admin_client.post(f"/api/training/public/{tid}", data={**TRAINING_FORM, "trainingProvider": ""}).status_code == 200
     db.refresh(t)
     assert t.training_provider is None
+
+
+def test_ojt_excel_review_then_confirm(admin_client, db, client, staff_user):
+    """Check the file, fix it on screen (edit / remove / keep resigned), then confirm."""
+    active = db.query(User).filter(User.staff_no.op("~")("^[0-9]{6}$"), User.status == "ACTIVE").order_by(User.id).limit(2).all()
+    resigned = db.query(User).filter(User.status == "RESIGN").first()
+    wb = Workbook()
+    ws = wb.active
+    ws["C3"], ws["C4"], ws["C5"], ws["C6"] = "review me", "line 2", "Internal", "someone"
+    ws["C7"] = ws["C8"] = datetime(2026, 4, 24)
+    ws["C9"], ws["C10"] = "8:00 AM", "8:30 AM"
+    ws["B13"], ws["B14"], ws["B15"] = "'" + active[0].staff_no, "NOPE999", resigned.staff_no
+    buf = io.BytesIO()
+    wb.save(buf)
+    before = db.query(Ojt).count()
+
+    # Check: every row with what LDMS knows; nothing saved.
+    r = admin_client.post("/api/ojt/upload/preview", files={"file": ("o.xlsx", buf.getvalue())})
+    assert r.status_code == 200, r.text
+    p = r.json()
+    assert p["fields"]["title"] == "REVIEW ME" and p["fields"]["startDate"] == "2026-04-24" and p["fields"]["startTime"] == "08:00"
+    assert [(x["row"], x["staffNo"], x["status"]) for x in p["rows"]] == [
+        (13, active[0].staff_no, "ok"), (14, "NOPE999", "missing"), (15, resigned.staff_no, "resigned")
+    ]  # fmt: skip
+    assert p["rows"][0]["name"] == active[0].staff_name
+    assert db.query(Ojt).count() == before
+
+    # Edit a Staff No on screen: looked up the same way as the Excel.
+    assert admin_client.get("/api/ojt/upload/lookup", params={"no": " '" + active[1].staff_no}).json()["status"] == "ok"
+    assert admin_client.get("/api/ojt/upload/lookup", params={"no": "NOPE999"}).json()["status"] == "missing"
+
+    # Confirm: a Staff No not in LDMS is refused; edited details and a kept resigned person are saved.
+    form = {**{k: v for k, v in p["fields"].items()}, "trainerType": "INTERNAL", "title": "Review me (edited)"}
+    bad = admin_client.post("/api/ojt/upload/confirm", data={**form, "staffNo": [active[0].staff_no, "NOPE999"]})
+    assert bad.status_code == 400 and "NOPE999" in bad.json()["detail"]
+    ok = admin_client.post(
+        "/api/ojt/upload/confirm", data={**form, "staffNo": [active[0].staff_no, active[1].staff_no, resigned.staff_no]}
+    )
+    assert ok.status_code == 200, ok.text
+    o = db.get(Ojt, ok.json()["id"])
+    assert o.title == "REVIEW ME (EDITED)" and (o.total_day, o.start_time, o.end_time) == (1, "08:00", "08:30")
+    assert sorted(x.user_id for x in o.participants) == sorted([active[0].id, active[1].id, resigned.id])
+
+    # Only OJT managers (Admin / Clerk).
+    login_as(client, staff_user)
+    assert client.post("/api/ojt/upload/preview", files={"file": ("o.xlsx", buf.getvalue())}).status_code == 403
+    assert client.post("/api/ojt/upload/confirm", data={**form, "staffNo": [active[0].staff_no]}).status_code == 403

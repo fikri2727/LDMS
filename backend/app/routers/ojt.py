@@ -6,10 +6,17 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.deps import DB, CurrentUser
 from app.forms import Form, bad, fdate, ffile, fint, fstr
-from app.models import AttendanceStatus, Ojt, ParticipateOjt, StaffStatus, TrainerType, User
+from app.models import (
+    AttendanceStatus,
+    Ojt,
+    ParticipateOjt,
+    StaffStatus,
+    TrainerType,
+    User,
+)
 from app.rbac import can_evaluate_on_behalf, can_manage_ojt
 from app.serialize import Sel, ser
-from app.services.excel import parse_ojt_excel
+from app.services.excel import normalize_staff_no, parse_ojt_excel
 from app.services.survey import apply_ojt_survey_answers, department_snapshot
 from app.services.util import compute_days, compute_hours, generate_ojt_code
 
@@ -193,7 +200,15 @@ async def create_ojt_from_excel(form: Form, db: DB, user: CurrentUser):
     by_no = {s.staff_no.upper(): s for s in staff}
     missing = [n for n in parsed["staffNos"] if n not in by_no]
     if missing:
-        raise bad(f"These Staff No(s) were not found among active staff: {', '.join(missing)}")
+        resigned = set(db.scalars(select(User.staff_no).where(User.staff_no.in_(missing))).all())
+        not_in = [n for n in missing if n not in resigned]
+        lines = [f"{len(missing)} of {len(parsed['staffNos'])} Staff No(s) can't be added, so nothing was saved:"]
+        if not_in:
+            lines.append(f"Not in LDMS ({len(not_in)}): {', '.join(not_in)}")
+        if resigned:
+            lines.append(f"Resigned in LDMS ({len(resigned)}): {', '.join(n for n in missing if n in resigned)}")
+        lines.append("Fix or remove these rows in the Excel file, then upload again.")
+        raise bad("\n".join(lines))
 
     f = parsed["fields"]
     f["trainer_type"] = TrainerType(f["trainer_type"])
@@ -202,6 +217,95 @@ async def create_ojt_from_excel(form: Form, db: DB, user: CurrentUser):
     ojt = _create_ojt(db, f, user.id)
     for no in parsed["staffNos"]:
         s = by_no[no]
+        db.add(ParticipateOjt(ojt_id=ojt.id, user_id=s.id, department=department_snapshot(s), clerk_id=user.id))
+    db.commit()
+    return {"id": ojt.id}
+
+
+# ---------- Excel upload with a review step: check -> fix on screen -> confirm ----------
+
+
+def _require_manage(user):
+    if not can_manage_ojt(user):
+        raise HTTPException(403, "You do not have permission to upload OJT records.")
+
+
+def _participant_rows(db: DB, staff_nos: list[str]) -> dict[str, dict]:
+    """Staff No -> what LDMS knows: status ok (active), resigned, or missing (not in LDMS)."""
+    users = db.scalars(
+        select(User).options(joinedload(User.department)).where(User.staff_no.in_(staff_nos))
+    ).all()
+    by_no = {u.staff_no.upper(): u for u in users}
+    out = {}
+    for no in staff_nos:
+        u = by_no.get(no)
+        out[no] = {
+            "staffNo": no,
+            "status": "missing" if u is None else ("ok" if u.status == StaffStatus.ACTIVE else "resigned"),
+            "name": u.staff_name if u else None,
+            "department": (u.department.name if u and u.department else None),
+        }
+    return out
+
+
+@router.post("/upload/preview")
+async def preview_ojt_excel(form: Form, db: DB, user: CurrentUser):
+    """Read the Excel and say what LDMS knows about each participant. Writes nothing."""
+    _require_manage(user)
+    file = ffile(form, "file")
+    if file is None:
+        raise bad("Please choose an Excel file to upload.")
+    parsed = parse_ojt_excel(await file.read())
+    f = parsed["fields"]
+    info = _participant_rows(db, parsed["staffNos"])
+    return {
+        "fields": {
+            "title": f["title"],
+            "venue": f["venue"],
+            "trainerType": f["trainer_type"],
+            "trainerName": f["trainer_name"],
+            "startDate": f["start_date"].strftime("%Y-%m-%d"),
+            "endDate": f["end_date"].strftime("%Y-%m-%d"),
+            "startTime": f["start_time"],
+            "endTime": f["end_time"],
+        },
+        "rows": [info[r["staffNo"]] | {"row": r["row"]} for r in parsed["rows"]],
+    }
+
+
+@router.get("/upload/lookup")
+def lookup_ojt_participant(no: str, db: DB, user: CurrentUser):
+    """One Staff No typed on the review screen (same cleaning as the Excel: 1622 -> 001622, 'x -> x)."""
+    _require_manage(user)
+    staff_no = normalize_staff_no(no)
+    if not staff_no:
+        raise bad("Type a Staff No.")
+    return _participant_rows(db, [staff_no])[staff_no]
+
+
+@router.post("/upload/confirm")
+def confirm_ojt_excel(form: Form, db: DB, user: CurrentUser):
+    """Create the OJT from the reviewed details and participants. Resigned staff are only added when the
+    reviewer chose to keep them; a Staff No that is not in LDMS can't be added."""
+    _require_manage(user)
+    fields = _read_ojt_fields(form)
+    staff_nos: list[str] = []
+    for v in form.getlist("staffNo"):
+        no = normalize_staff_no(str(v))
+        if no and no not in staff_nos:
+            staff_nos.append(no)
+    if not staff_nos:
+        raise bad("Add at least one participant.")
+    info = _participant_rows(db, staff_nos)
+    missing = [n for n in staff_nos if info[n]["status"] == "missing"]
+    if missing:
+        raise bad(f"Not in LDMS, so they can't be added ({len(missing)}): {', '.join(missing)}. Edit or remove them.")
+    users = {u.staff_no.upper(): u for u in db.scalars(
+        select(User).options(joinedload(User.department)).where(User.staff_no.in_(staff_nos))
+    ).all()}  # fmt: skip
+    ojt = _create_ojt(db, fields, user.id)
+    for no in staff_nos:
+        s = users[no]
         db.add(ParticipateOjt(ojt_id=ojt.id, user_id=s.id, department=department_snapshot(s), clerk_id=user.id))
     db.commit()
     return {"id": ojt.id}

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, guard } from "@/lib/api";
 
 /**
  * Admin/Clerk keying in an OJT for others -> session only; participants are added
@@ -16,12 +16,45 @@ export async function createOjt(formData: FormData) {
   redirect(to);
 }
 
-/** Admin/Clerk: bulk-create an OJT session and its participants from Excel (all-or-nothing). */
-export async function createOjtFromExcel(formData: FormData) {
-  const { id } = await api.post<{ id: number }>("/api/ojt/upload", formData);
-  revalidatePath("/training/ojt");
-  revalidatePath("/training");
-  redirect(`/training/ojt/${id}`);
+export interface OjtUploadRow {
+  row?: number; // Excel row; none for a row added on screen
+  staffNo: string;
+  status: "ok" | "resigned" | "missing";
+  name: string | null;
+  department: string | null;
+}
+export interface OjtUploadPreview {
+  fields: {
+    title: string;
+    venue: string;
+    trainerType: string;
+    trainerName: string;
+    startDate: string;
+    endDate: string;
+    startTime: string;
+    endTime: string;
+  };
+  rows: OjtUploadRow[];
+}
+
+/** Excel upload, step 1: read the file and say what LDMS knows about each participant. Saves nothing. */
+export async function previewOjtUpload(formData: FormData) {
+  return guard(() => api.post<OjtUploadPreview>("/api/ojt/upload/preview", formData));
+}
+
+/** A Staff No edited on the review screen. */
+export async function lookupOjtStaff(staffNo: string) {
+  return guard(() => api.get<OjtUploadRow>("/api/ojt/upload/lookup", { no: staffNo }));
+}
+
+/** Excel upload, step 2: create the OJT from the reviewed details and participants. */
+export async function confirmOjtUpload(formData: FormData) {
+  return guard(async () => {
+    const { id } = await api.post<{ id: number }>("/api/ojt/upload/confirm", formData);
+    revalidatePath("/training/ojt");
+    revalidatePath("/training");
+    redirect(`/training/ojt/${id}`);
+  });
 }
 
 export async function updateOjt(id: number, formData: FormData) {

@@ -35,8 +35,11 @@ def cell_text(v) -> str:
 
 
 def normalize_staff_no(raw: str) -> str:
-    """Excel drops leading zeros ("001622" -> 1622); pad all-digit values back to 6 digits."""
-    v = raw.strip().upper()
+    """Excel drops leading zeros ("001622" -> 1622); pad all-digit values back to 6 digits.
+
+    A typed apostrophe ("'001622", the usual way to keep zeros) is part of the cell's text when the
+    cell is already formatted as Text, so it is dropped here too."""
+    v = raw.replace(" ", " ").strip().lstrip("'‘’`").strip().upper()
     return v.zfill(6) if re.fullmatch(r"\d{1,5}", v) else v
 
 
@@ -193,12 +196,14 @@ def parse_ojt_excel(data: bytes) -> dict:
     }
 
     staff_nos: list[str] = []
+    rows: list[dict] = []  # first row each Staff No appears on, for the review screen
     for r in range(FIRST_PARTICIPANT_ROW, max(ws.max_row, FIRST_PARTICIPANT_ROW) + 1):
         no = normalize_staff_no(cell_text(ws[f"{PARTICIPANT_COLUMN}{r}"].value))  # 1622 -> 001622
         if no and no not in staff_nos:
             staff_nos.append(no)
+            rows.append({"row": r, "staffNo": no})
     if not staff_nos:
         raise bad(
             f"No participants found — list each Staff No in column {PARTICIPANT_COLUMN} starting row {FIRST_PARTICIPANT_ROW}."
         )
-    return {"fields": fields, "staffNos": staff_nos}
+    return {"fields": fields, "staffNos": staff_nos, "rows": rows}

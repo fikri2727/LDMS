@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { notFound, redirect, unstable_rethrow } from "next/navigation";
+import type { ActionResult } from "@/lib/actionError";
 
 /**
  * Client for the Python (FastAPI) backend. Server-side only: pages and server
@@ -121,4 +122,20 @@ export async function proxyFile(path: string) {
     if (v) headers.set(h, v);
   }
   return new Response(res.body, { status: res.status, headers });
+}
+
+/**
+ * Wrap a server action's body: the backend's refusal (or "server unreachable") comes back as
+ * `{ actionError }` instead of a thrown error, whose text production builds would hide.
+ * Redirects and notFound() still work. The browser calls the action through `unwrap()`.
+ */
+export async function guard<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
+  try {
+    return await fn();
+  } catch (e) {
+    unstable_rethrow(e); // redirect(), notFound() and other Next.js control flow
+    if (e instanceof ApiError) return { actionError: e.message };
+    console.error("Server action failed:", e);
+    return { actionError: "Something went wrong on the server. Please try again." };
+  }
 }
